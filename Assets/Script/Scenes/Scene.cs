@@ -22,4 +22,9 @@ public class Scene : MonoBehaviour
     {
         SceneManager.LoadScene("Level");
     }
+
+    public void Upgrades()
+    {
+        SceneManager.LoadScene("UpgradeScene");
+    }
 }

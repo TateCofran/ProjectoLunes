@@ -7,6 +7,7 @@ public class Turret : MonoBehaviour
     [Header("Árbol de mejoras")]
     public ArbolDeMejoras arbolDeMejoras;
     public MejoraNodo nodoActual;
+    public string torretaID = "Normal";
 
     [HideInInspector] public TurretData turretData;
 
@@ -49,28 +50,50 @@ public class Turret : MonoBehaviour
         if (turretInfoUI != null)
             turretInfoUI.Initialize(this);
 
+        // Aplica mejoras guardadas
+        AplicarMejorasGuardadas();
+    }
+
+    void AplicarMejorasGuardadas()
+    {
+        // "oroMatar", "damage", "range", "stats"
+        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "damage"))
+            AplicarMejora(arbolDeMejoras.raiz.izquierda);
+
+        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "range"))
+            AplicarMejora(arbolDeMejoras.raiz.derecha);
+
+        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "stats"))
+            AplicarMejora(arbolDeMejoras.raiz.izquierda.derecha);
+
+        // Si quisieras, podrías también guardar el estado de oroMatar y aplicarlo
+    }
+
+    public void AplicarMejora(MejoraNodo nodo)
+    {
+        if (nodo.damageMultiplier != 1f)
+            damage = Mathf.Round(damage * nodo.damageMultiplier);
+
+        if (nodo.rangeMultiplier != 1f)
+            range = Mathf.Round(range * nodo.rangeMultiplier);
+
+        if (nodo.fireRateMultiplier != 1f)
+            fireRate = Mathf.Round(fireRate * nodo.fireRateMultiplier);
     }
 
     public bool TryApplyUpgrade(MejoraNodo nodo)
     {
+        if (nodo == null) return false;
+
         if (arbolDeMejoras.Desbloquear(nodo))
         {
             AplicarMejora(nodo);
             nodoActual = nodo;
-            upgradeLevel++;
             return true;
         }
         return false;
     }
 
-    // Aplica los efectos de la mejora según el nodo
-    private void AplicarMejora(MejoraNodo nodo)
-    {
-        if (nodo.damageMultiplier != 1f) damage = Mathf.Round(damage * nodo.damageMultiplier);
-        if (nodo.rangeMultiplier != 1f) range = Mathf.Round(range * nodo.rangeMultiplier);
-        if (nodo.fireRateMultiplier != 1f) fireRate = Mathf.Round(fireRate * nodo.fireRateMultiplier);
-        // Si algún nodo te diera oro por matar, podrías guardar un flag aquí
-    }
 
     public void UpdateRangeCircle()
     {

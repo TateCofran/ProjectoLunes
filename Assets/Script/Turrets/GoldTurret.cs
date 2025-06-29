@@ -4,36 +4,44 @@ using UnityEngine;
 public class GoldTurret : Turret
 {
     private bool registered = false;
-    private int oroExtra = 0; // oro extra ganado por las mejoras
+    private int oroExtra = 0; 
 
     protected override void Start()
     {
-        // Es un árbol especial para gold
         arbolDeMejoras = new ArbolDeMejoras(true);
         nodoActual = arbolDeMejoras.raiz;
         nodoActual.desbloqueada = true;
+        torretaID = "Gold";
 
+        AplicarMejorasGuardadas();
         base.Start();
         RegisterToWaveSpawner();
     }
+    void AplicarMejorasGuardadas()
+    {
+        // "oro5", "oro10", "oro20"
+        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "oro5"))
+            oroExtra += arbolDeMejoras.raiz.oroExtraPorRonda;
 
-    // Para la UI, llamar esto en vez de TryApplyUpgrade
+        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "oro10"))
+            oroExtra += arbolDeMejoras.raiz.izquierda.oroExtraPorRonda;
+
+        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "oro20"))
+            oroExtra += arbolDeMejoras.raiz.derecha.oroExtraPorRonda;
+    }
+
     public bool TryApplyGoldUpgrade(MejoraNodo nodo)
     {
+        if (nodo == null) return false;
+
         if (arbolDeMejoras.Desbloquear(nodo))
         {
-            AplicarMejoraGold(nodo);
+            if (nodo.oroExtraPorRonda > 0)
+                oroExtra += nodo.oroExtraPorRonda;
             nodoActual = nodo;
-            upgradeLevel++;
             return true;
         }
         return false;
-    }
-
-    private void AplicarMejoraGold(MejoraNodo nodo)
-    {
-        if (nodo.oroExtraPorRonda > 0)
-            oroExtra += nodo.oroExtraPorRonda;
     }
 
     public void RegisterToWaveSpawner()
@@ -45,7 +53,6 @@ public class GoldTurret : Turret
         }
     }
 
-    // Sobrescribe GiveGold para sumar el bonus extra
     public void GiveGold()
     {
         if (turretData != null)
