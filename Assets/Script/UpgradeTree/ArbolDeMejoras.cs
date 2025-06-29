@@ -1,45 +1,58 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿
 using UnityEngine;
 
 public class ArbolDeMejoras
 {
     public MejoraNodo raiz;
 
-    public ArbolDeMejoras()
+    public ArbolDeMejoras(bool esGoldTurret = false)
     {
-        // Nivel 1
-        raiz = new MejoraNodo("Oro al matar (1 por enemigo eliminado)");
+        if (esGoldTurret)
+        {
+            // SOLO mejoras de oro para GoldTurret
+            raiz = new MejoraNodo("Oro extra por ronda (+5)");
+            raiz.oroExtraPorRonda = 5;
 
-        // Nivel 2
-        raiz.izquierda = new MejoraNodo("Más daño de las torretas (10% más)");
-        raiz.derecha = new MejoraNodo("Más alcance de las torretas (10% más)");
+            raiz.izquierda = new MejoraNodo("Oro extra por ronda (+10)");
+            raiz.izquierda.oroExtraPorRonda = 10;
 
-        // Nivel 3
-        raiz.izquierda.derecha = new MejoraNodo("Aumento de todas las estadísticas en un 5%");
-        raiz.derecha.izquierda = raiz.izquierda.derecha; // Ambas ramas apuntan al mismo nodo
+            raiz.derecha = new MejoraNodo("Oro extra por ronda (+20)");
+            raiz.derecha.oroExtraPorRonda = 20;
+        }
+        else
+        {
+            // Mejora normal para torretas comunes
+            raiz = new MejoraNodo("Oro al matar (1 por enemigo eliminado)");
+
+            raiz.izquierda = new MejoraNodo("Más daño de las torretas (10% más)");
+            raiz.izquierda.damageMultiplier = 1.1f;
+            raiz.derecha = new MejoraNodo("Más alcance de las torretas (10% más)");
+            raiz.derecha.rangeMultiplier = 1.1f;
+
+            raiz.izquierda.derecha = new MejoraNodo("Aumento de todas las estadísticas en un 5%");
+            raiz.izquierda.derecha.damageMultiplier = 1.05f;
+            raiz.izquierda.derecha.rangeMultiplier = 1.05f;
+            raiz.izquierda.derecha.fireRateMultiplier = 1.05f;
+            raiz.derecha.izquierda = raiz.izquierda.derecha; // Ambas ramas apuntan al mismo nodo
+        }
     }
 
-    // Devuelve true si la mejora se puede desbloquear (cumple requisitos previos)
     public bool PuedeDesbloquear(MejoraNodo nodo)
     {
         if (nodo == null || nodo.desbloqueada) return false;
 
         if (nodo == raiz)
-            return true; // Primer nivel siempre disponible
+            return true;
 
-        // Nivel 2: su padre debe estar desbloqueado
         if (nodo == raiz.izquierda || nodo == raiz.derecha)
             return raiz.desbloqueada;
 
-        // Nivel 3: ambas mejoras de nivel 2 desbloqueadas
         if (nodo == raiz.izquierda.derecha)
             return raiz.izquierda.desbloqueada && raiz.derecha.desbloqueada;
 
         return false;
     }
 
-    // Desbloquea la mejora si se puede
     public bool Desbloquear(MejoraNodo nodo)
     {
         if (PuedeDesbloquear(nodo))
@@ -55,3 +68,6 @@ public class ArbolDeMejoras
         }
     }
 }
+
+
+

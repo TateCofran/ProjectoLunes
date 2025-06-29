@@ -4,8 +4,11 @@ using UnityEngine;
 
 public class Turret : MonoBehaviour
 {
-    [HideInInspector]
-    public TurretData turretData;
+    [Header("Árbol de mejoras")]
+    public ArbolDeMejoras arbolDeMejoras;
+    public MejoraNodo nodoActual;
+
+    [HideInInspector] public TurretData turretData;
 
     [Header("Stats")]
     public float range;
@@ -14,7 +17,7 @@ public class Turret : MonoBehaviour
     public int cost;
 
     [Header("Upgrade Info")]
-    public int upgradeLevel = 1; // Nivel inicial en 1
+    public int upgradeLevel = 1;
     public int maxUpgradeLevel = 15;
 
     public Transform currentTarget;
@@ -34,15 +37,41 @@ public class Turret : MonoBehaviour
     public enum TargetingMode { Closest, Farthest, HighestHealth, LowestHealth }
     public TargetingMode currentTargetingMode = TargetingMode.Closest;
 
+
     protected virtual void Start()
     {
+        if (arbolDeMejoras == null)
+            arbolDeMejoras = new ArbolDeMejoras(false);
+
+        nodoActual = arbolDeMejoras.raiz;
+        nodoActual.desbloqueada = true;
+
         if (turretInfoUI != null)
-        {
             turretInfoUI.Initialize(this);
-            //turretInfoUI.Hide(); // oculta inicialmente
-        }
 
     }
+
+    public bool TryApplyUpgrade(MejoraNodo nodo)
+    {
+        if (arbolDeMejoras.Desbloquear(nodo))
+        {
+            AplicarMejora(nodo);
+            nodoActual = nodo;
+            upgradeLevel++;
+            return true;
+        }
+        return false;
+    }
+
+    // Aplica los efectos de la mejora según el nodo
+    private void AplicarMejora(MejoraNodo nodo)
+    {
+        if (nodo.damageMultiplier != 1f) damage = Mathf.Round(damage * nodo.damageMultiplier);
+        if (nodo.rangeMultiplier != 1f) range = Mathf.Round(range * nodo.rangeMultiplier);
+        if (nodo.fireRateMultiplier != 1f) fireRate = Mathf.Round(fireRate * nodo.fireRateMultiplier);
+        // Si algún nodo te diera oro por matar, podrías guardar un flag aquí
+    }
+
     public void UpdateRangeCircle()
     {
         float angleStep = 360f / circleSegments;
@@ -256,5 +285,6 @@ public class Turret : MonoBehaviour
         list[right] = temp2;
         return i + 1;
     }
+
 
 }
