@@ -126,7 +126,7 @@ public class Enemy : MonoBehaviour
 
         //Debug.Log($"[ENEMY MOVE] {gameObject.name} en {transform.position}, yendo a [{currentPathIndex - 1}] {target}");
 
-        transform.position = Vector3.MoveTowards(transform.position, target, speed * Time.deltaTime);
+        transform.position = Vector3.MoveTowards(transform.position, target, speed * Time.deltaTime * GameSpeedController.SpeedMultiplier);
 
         if (Vector3.Distance(transform.position, target) < 0.1f)
         {
