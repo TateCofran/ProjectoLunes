@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -17,7 +18,7 @@ public class Enemy : MonoBehaviour
     private int currentPathIndex = 0;
     private List<Vector3> debugPath = new List<Vector3>();
 
-    // CAMBIO: uso PilaTF en vez de Stack
+    // uso PilaTF en vez de Stack
     private PilaTF<(Vector3[] path, int index)> previousPaths = new PilaTF<(Vector3[], int)>();
 
     private HashSet<PathConnection> usedConnections = new HashSet<PathConnection>();
@@ -40,31 +41,28 @@ public class Enemy : MonoBehaviour
     private float originalSpeed;
     private Coroutine slowCoroutine;
 
-    public void InitializePath(Vector3[] positions, GameObject coreObject, WaveSpawner spawner, GridManager manager)
+    public void InitializePath(Vector2Int spawnGridPos, Vector2Int coreGridPos, GameObject coreObject, WaveSpawner spawner, GridManager manager)
     {
         isDead = false;
-
-        //Debug.Log($"[ENEMY INIT] Posición al inicializar: {transform.position}");
-
-        previousPaths.InicializarPila(); // INICIALIZAR PILA
-
-        pathPositions = positions;
-        mainPathPositions = positions;
-        currentPathIndex = positions.Length - 1;
-
-        if (pathPositions == null || pathPositions.Length == 0)
-        {
-            Debug.LogError("pathPositions está vacío o NULL.");
-            return;
-        }
+        previousPaths.InicializarPila();
 
         core = coreObject;
         waveSpawner = spawner;
         gridManager = manager;
         currentHealth = maxHealth;
 
-        // NO cambies la posición acá. Ya se hizo en el WaveSpawner.
-        // transform.position = pathPositions[0];   <--- QUITAR ESTA LÍNEA
+        // --- Pedir camino óptimo ---
+        pathPositions = gridManager.ObtenerCaminoOptimoWorld(spawnGridPos, coreGridPos);
+        Debug.Log($"[ENEMY] pathPositions: {string.Join(" -> ", pathPositions.Select(p => p.ToString()))}");
+
+        mainPathPositions = pathPositions;
+        currentPathIndex = 1; // Empieza en el primer segmento (del 0 al 1)
+
+        if (pathPositions == null || pathPositions.Length == 0)
+        {
+            Debug.LogError("pathPositions está vacío o NULL.");
+            return;
+        }
 
         if (healthBarPrefab != null)
         {
@@ -120,11 +118,9 @@ public class Enemy : MonoBehaviour
 
     public void Move()
     {
-        if (pathPositions == null || currentPathIndex <= 0) return;
+        if (pathPositions == null || currentPathIndex >= pathPositions.Length) return;
 
-        Vector3 target = pathPositions[currentPathIndex - 1];
-
-        //Debug.Log($"[ENEMY MOVE] {gameObject.name} en {transform.position}, yendo a [{currentPathIndex - 1}] {target}");
+        Vector3 target = pathPositions[currentPathIndex];
 
         transform.position = Vector3.MoveTowards(transform.position, target, speed * Time.deltaTime * GameSpeedController.SpeedMultiplier);
 
@@ -132,17 +128,17 @@ public class Enemy : MonoBehaviour
         {
             AdvanceToNextSegment();
         }
-
-        DebugDrawPath();
     }
+
 
     private void AdvanceToNextSegment()
     {
-        if (currentPathIndex > 0)
+        if (currentPathIndex < pathPositions.Length - 1)
         {
-            currentPathIndex--;
+            currentPathIndex++;
         }
     }
+
 
 
 
@@ -197,5 +193,18 @@ public class Enemy : MonoBehaviour
         }
         return -1;
     }
+
+    void OnDrawGizmosSelected()
+    {
+        if (pathPositions != null && pathPositions.Length > 1)
+        {
+            Gizmos.color = Color.red;
+            for (int i = 0; i < pathPositions.Length - 1; i++)
+            {
+                Gizmos.DrawLine(pathPositions[i] + Vector3.up * 0.3f, pathPositions[i + 1] + Vector3.up * 0.3f);
+            }
+        }
+    }
+
 }
 

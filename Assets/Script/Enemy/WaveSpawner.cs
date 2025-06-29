@@ -139,7 +139,7 @@ public class WaveSpawner : MonoBehaviour
 
     IEnumerator WaitForPathAndSpawn()
     {
-        gridManager.ExpandPathWithRandomTile(); // O tu selección de UI
+        gridManager.ApplyRandomValidTileExpansion();
 
         yield return null; // espera a que termine la expansión visual
 
@@ -186,6 +186,19 @@ public class WaveSpawner : MonoBehaviour
         Vector3[] path = fullPath.ToArray();
         spawnPos = path[path.Length - 1]; // <- ÚLTIMA POSICIÓN
 
+        Vector3 spawnWorldPos = path[path.Length - 1];
+        Vector2Int spawnGridPos = new Vector2Int(
+            Mathf.RoundToInt(spawnWorldPos.x / gridManager.cellSize),
+            Mathf.RoundToInt(spawnWorldPos.z / gridManager.cellSize)
+        );
+
+        Vector3 coreWorldPos = path[0]; // asumiendo que el core está en la primera posición
+        Vector2Int coreGridPos = new Vector2Int(
+            Mathf.RoundToInt(coreWorldPos.x / gridManager.cellSize),
+            Mathf.RoundToInt(coreWorldPos.z / gridManager.cellSize)
+        );
+
+
         // spawn normales
         for (int i = 0; i < totalEnemies - extraEnemies; i++)
         {
@@ -197,7 +210,7 @@ public class WaveSpawner : MonoBehaviour
             e.enemyType = "Slow";
 
             // Pasa el path completo
-            e.InitializePath(path, core, this, gridManager);
+            e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
 
             //Debug.Log($"[SPAWN ENEMY] Instanciando enemigo en: {spawnPos}");
 
@@ -218,9 +231,24 @@ public class WaveSpawner : MonoBehaviour
         go.transform.position = spawnPos;
         var e = go.GetComponent<Enemy>();
         e.enemyType = type;
-        e.InitializePath(fullPath.ToArray(), core, this, gridManager);
+
+        Vector2Int spawnGridPos = new Vector2Int(
+            Mathf.RoundToInt(spawnPos.x / gridManager.cellSize),
+            Mathf.RoundToInt(spawnPos.z / gridManager.cellSize)
+        );
+        // Si ya usás gridManager.corePos, usalo directamente. 
+        // Si no, obtenelo de fullPath[0] como antes:
+        Vector3 coreWorldPos = fullPath[0];
+        Vector2Int coreGridPos = new Vector2Int(
+            Mathf.RoundToInt(coreWorldPos.x / gridManager.cellSize),
+            Mathf.RoundToInt(coreWorldPos.z / gridManager.cellSize)
+        );
+
+        e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
+
         yield return new WaitForSeconds(1f);
     }
+
 
     public void EnemyKilled(Enemy enemy)
     {

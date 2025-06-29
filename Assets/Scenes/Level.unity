@@ -912,13 +912,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 001fcae64127f784a8b7a637887dcb4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tileSize: 5
-  cellSize: 1
   cellPrefab: {fileID: 2388724251714943427, guid: e038164a535796445a6177659f5e1026, type: 3}
   pathPrefab: {fileID: 2388724251714943427, guid: afcc5d64d86868f4daf8288ce838d556, type: 3}
   corePrefab: {fileID: 4187024404077585579, guid: 3e9834290c753a644b8b145d60aee381, type: 3}
-  formasDeTile: []
-  lastTileEntryWorldPos: {x: 0, y: 0, z: 0}
+  width: 5
+  height: 5
+  cellSize: 1
+  pathPositions: []
+  currentPathEnd: {x: 0, y: 0}
 --- !u!1 &453093054
 GameObject:
   m_ObjectHideFlags: 0
@@ -2786,8 +2787,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7289e5236c178be428bff92bbe1b5379, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentGold: 100
   goldText: {fileID: 1184580140}
+  permanentGoldText: {fileID: 0}
+  startingGold: 30
 --- !u!4 &1692993415
 Transform:
   m_ObjectHideFlags: 0
