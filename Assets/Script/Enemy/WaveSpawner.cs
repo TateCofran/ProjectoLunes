@@ -244,7 +244,7 @@ public class WaveSpawner : MonoBehaviour
         }
 
         // ¡Spawnear SIEMPRE en el ÚLTIMO punto del path!
-        enemyGO.transform.position = gridManager.lastTileEntryWorldPos;
+        enemyGO.transform.position = gridManager.GetLastTileEntryWorldPos();
 
         Enemy enemy = enemyGO.GetComponent<Enemy>();
         enemy.enemyType = "Slow";
@@ -268,7 +268,7 @@ public class WaveSpawner : MonoBehaviour
         }
 
         // SPAWNEA AL FINAL DEL ARRAY
-        enemyGO.transform.position = gridManager.lastTileEntryWorldPos;
+        enemyGO.transform.position = gridManager.GetLastTileEntryWorldPos();
 
         // PASA EL ARRAY Y UN FLAG DE DIRECCIÓN
         Enemy enemy = enemyGO.GetComponent<Enemy>();
