@@ -91,6 +91,7 @@ public class EnemyPool : MonoBehaviour
         enemy.transform.SetParent(this.transform);
         enemy.SetActive(false);
         pools[type].Acolar(enemy);
+
     }
 
     public void LogPoolStatus()
@@ -101,7 +102,7 @@ public class EnemyPool : MonoBehaviour
             int unused = pools[type].Count();
             int used = instantiated - unused;
 
-            Debug.Log($"Estado Pool '{type}': Total instanciados: {instantiated}, Usados: {used}, Sin usar: {unused}");
+            //Debug.Log($"Estado Pool '{type}': Total instanciados: {instantiated}, Usados: {used}, Sin usar: {unused}");
         }
     }
 }

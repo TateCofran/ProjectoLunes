@@ -142,6 +142,47 @@ namespace Assets.Script
             int d = Vert2Indice(v2);
             return MAdy[o, d];
         }
+        // BFS que devuelve el camino de indices (del grafo) entre dos vertices
+        public List<int> GetPathBFS(int start, int end, GrafoMA grafo)
+        {
+            Queue<int> queue = new Queue<int>();
+            Dictionary<int, int> prev = new Dictionary<int, int>();
+            queue.Enqueue(start);
+            prev[start] = -1;
+
+            while (queue.Count > 0)
+            {
+                int curr = queue.Dequeue();
+                if (curr == end)
+                {
+                    // reconstruir el camino
+                    List<int> path = new List<int>();
+                    int node = end;
+                    while (node != -1)
+                    {
+                        path.Add(node);
+                        node = prev[node];
+                    }
+                    path.Reverse();
+                    return path;
+                }
+                // vecinos
+                for (int i = 0; i < grafo.cantNodos; i++)
+                {
+                    if (grafo.MAdy[grafo.Vert2Indice(curr), i] != 0)
+                    {
+                        int vecino = grafo.Etiqs[i];
+                        if (!prev.ContainsKey(vecino))
+                        {
+                            queue.Enqueue(vecino);
+                            prev[vecino] = curr;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
     }
     public class ConjuntoLD : ConjuntoTDA
     {
@@ -199,4 +240,5 @@ namespace Assets.Script
             return (aux != null);
         }
     }
+
 }

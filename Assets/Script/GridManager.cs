@@ -1,398 +1,605 @@
-using Assets.Script;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Assets.Script;   // <-- Tu namespace donde está GrafoMA
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
 {
-    public int tileSize = 5;
+    public static GridManager Instance;
+
+    public int width = 5;
+    public int height = 5;
     public float cellSize = 1f;
 
     public GameObject cellPrefab;
     public GameObject pathPrefab;
     public GameObject corePrefab;
 
+    private const int WORLD_WIDTH = 1000;    // o cualquier ancho suficiente para todo tu mundo
     private GrafoMA grafo;
-    private List<List<int>> tilePaths = new List<List<int>>(); // Lista de caminos de cada tile
+
+    public GameObject tilePreviewPrefab;
+    private GameObject currentPreview;
+    private List<Vector3> orderedPathPositions = new List<Vector3>();
+
+    private Dictionary<Vector2Int, GameObject> gridCells = new();
+    private List<Vector3> pathPositions = new();
+
+    private Vector2Int currentPathEnd;
     private int tileCount = 0;
 
-    private Vector3 lastExitWorldPos = Vector3.zero;
-    private Vector2Int lastExitLocal = Vector2Int.zero; // salida en grid local
+    private List<PlacedTileData> placedTiles = new();
 
-    public List<TileShape> formasDeTile = new List<TileShape>();
-    private List<Vector3> pathEntrancesWorld = new List<Vector3>();
-    // En GridManager
-    public Vector3 lastTileEntryWorldPos; // La entrada del último tile agregado
-    private List<Vector3> tileOffsets = new List<Vector3>();
-
-    void Awake()
-    {
-        // Forma recto vertical (centro arriba a centro abajo)
-        var caminoRecto = new List<Vector2Int>();
-        for (int y = 0; y < tileSize; y++) caminoRecto.Add(new Vector2Int(tileSize / 2, y));
-        formasDeTile.Add(new TileShape(
-            "Recto",
-            caminoRecto,
-            new Vector2Int(tileSize / 2, 0),
-            new List<Vector2Int> { new Vector2Int(tileSize / 2, tileSize - 1) },
-            new List<(Vector2Int, Vector2Int)>()
-        ));
-
-        // Forma L (centro arriba, va hasta la mitad, gira a la derecha)
-        var caminoL = new List<Vector2Int>();
-        for (int y = 0; y <= tileSize / 2; y++) caminoL.Add(new Vector2Int(tileSize / 2, y));
-        for (int x = tileSize / 2 + 1; x < tileSize; x++) caminoL.Add(new Vector2Int(x, tileSize / 2));
-        formasDeTile.Add(new TileShape(
-            "L",
-            caminoL,
-            new Vector2Int(tileSize / 2, 0),
-            new List<Vector2Int> { new Vector2Int(tileSize - 1, tileSize / 2) },
-            new List<(Vector2Int, Vector2Int)>()
-        ));
-        // Forma Cruz (centro, sale arriba, abajo, izq, der)
-        var cruzCentro = new Vector2Int(tileSize / 2, tileSize / 2);
-        var caminoCruz = new List<Vector2Int> { cruzCentro };
-        for (int y = 0; y < tileSize; y++) if (y != tileSize / 2) caminoCruz.Add(new Vector2Int(tileSize / 2, y));
-        for (int x = 0; x < tileSize; x++) if (x != tileSize / 2) caminoCruz.Add(new Vector2Int(x, tileSize / 2));
-
-        // Conexiones: centro con cada rama
-        var conexionesCruz = new List<(Vector2Int, Vector2Int)>();
-        for (int y = 0; y < tileSize; y++)
-            if (y != tileSize / 2) conexionesCruz.Add((cruzCentro, new Vector2Int(tileSize / 2, y)));
-        for (int x = 0; x < tileSize; x++)
-            if (x != tileSize / 2) conexionesCruz.Add((cruzCentro, new Vector2Int(x, tileSize / 2)));
-
-        formasDeTile.Add(new TileShape(
-            "Cruz",
-            caminoCruz,
-            cruzCentro, // entrada en el centro
-            new List<Vector2Int> {
-        new Vector2Int(tileSize / 2, 0),
-        new Vector2Int(tileSize / 2, tileSize - 1),
-        new Vector2Int(0, tileSize / 2),
-        new Vector2Int(tileSize - 1, tileSize / 2)
-            },
-            conexionesCruz
-        ));
-    }
-
-
-    void Start()
+    private void Awake()
     {
         grafo = new GrafoMA();
         grafo.InicializarGrafo();
-        // Primer tile (entrada = core, salida = centro última fila)
-        CrearTileYCamino(0, null, formasDeTile[0]);
     }
-    void Update()
+    IEnumerator Start()
     {
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            AgregarTile();
-            Debug.Log("Nuevo tile agregado.");
-        }
+        GenerateInitialGrid();
+        yield return new WaitForSeconds(0.1f); // pequeño delay para asegurar que la UI esté lista
+
     }
 
-    void CrearTileYCamino(int tileIndex, int? lastExit, TileShape forma)
+    void GenerateInitialGrid()
     {
-        int tileOffset = tileIndex * tileSize * tileSize;
+        // Limpia cualquier estado previo si fuera necesario
+        gridCells.Clear();
+        pathPositions.Clear();
+        tileCount = 0;
 
-        // Info estructural para debug (opcional)
-        var tileInfo = new TileParentInfo();
-        tileInfo.tileIndex = tileIndex;
+        // Creamos un objeto parent para el tile inicial
+        GameObject tileCore = new GameObject("Tile-0");
+        tileCore.transform.parent = this.transform;
 
-        // Guardá vértices y aristas de este tile
-        foreach (var cell in forma.camino)
-            tileInfo.vertices.Add(tileOffset + (cell.y * tileSize + cell.x));
-        foreach (var con in forma.conexiones)
-            tileInfo.aristas.Add((
-                tileOffset + (con.from.y * tileSize + con.from.x),
-                tileOffset + (con.to.y * tileSize + con.to.x),
-                1));
-
-        // 1. Agregar vértices al grafo
-        foreach (var cell in forma.camino)
-            grafo.AgregarVertice(tileOffset + (cell.y * tileSize + cell.x));
-        // 2. Conexiones internas
-        foreach (var con in forma.conexiones)
-            grafo.AgregarArista(0,
-                tileOffset + (con.from.y * tileSize + con.from.x),
-                tileOffset + (con.to.y * tileSize + con.to.x), 1);
-
-        // 3. Caminos adyacentes
-        for (int i = 0; i < forma.camino.Count - 1; i++)
+        // 1) Instanciamos la grilla base de celdas
+        for (int x = 0; x < width; x++)
         {
-            var a = forma.camino[i];
-            var b = forma.camino[i + 1];
-            grafo.AgregarArista(0,
-                tileOffset + (a.y * tileSize + a.x),
-                tileOffset + (b.y * tileSize + b.x), 1);
-        }
-
-        // 4. Entrada real: si hay lastExit, conectá con la entrada local
-        int entrada = tileOffset + (forma.entrada.y * tileSize + forma.entrada.x);
-        if (lastExit.HasValue)
-            grafo.AgregarArista(0, lastExit.Value, entrada, 1);
-
-        // 5. Generar el path de este tile
-        List<int> path;
-        if (forma.nombre == "Cruz")
-        {
-            int idxSalidaCruz = Random.Range(0, forma.salidas.Count);
-            Vector2Int salidaLocalCruz = forma.salidas[idxSalidaCruz];
-            int salida = tileOffset + (salidaLocalCruz.y * tileSize + salidaLocalCruz.x);
-            path = ObtenerCaminoBFS(entrada, salida);
-        }
-        else
-        {
-            // Para las demás formas, conectá todas las salidas
-            HashSet<int> fullPath = new HashSet<int>();
-            foreach (var salidaVec in forma.salidas)
+            for (int z = 0; z < height; z++)
             {
-                int salida = tileOffset + (salidaVec.y * tileSize + salidaVec.x);
-                var subPath = ObtenerCaminoBFS(entrada, salida);
-                if (subPath != null)
-                    foreach (var idx in subPath)
-                        fullPath.Add(idx);
+                Vector2Int pos = new Vector2Int(x, z);
+                Vector3 worldPos = new Vector3(x * cellSize, 0f, z * cellSize);
+                var cellGO = Instantiate(cellPrefab, worldPos, Quaternion.identity, tileCore.transform);
+                gridCells[pos] = cellGO;
             }
-            path = new List<int>(fullPath);
         }
-        tilePaths.Add(path);
 
-        // --- Offset para instanciar correctamente ---
-        Vector3 entradaLocalWorld = new Vector3(
-            forma.entrada.x * cellSize, 0.1f, forma.entrada.y * cellSize
+        // 2) Determinamos la posición del core: centro en X, borde inferior en Z (z = 0)
+        Vector2Int coreGrid = new Vector2Int(width / 2, 0);
+        Vector3 coreWorld = new Vector3(coreGrid.x * cellSize, 0f, coreGrid.y * cellSize);
+
+        // 3) Removemos la celda de suelo bajo el core y colocamos el prefab del core
+        if (gridCells.TryGetValue(coreGrid, out var oldCell))
+        {
+            Destroy(oldCell);
+            gridCells.Remove(coreGrid);
+        }
+        Instantiate(corePrefab, coreWorld, Quaternion.identity, tileCore.transform);
+
+        // 4) GRAFO: agregamos el vértice del core
+        int idxCore = coreGrid.y * WORLD_WIDTH + coreGrid.x;
+        grafo.AgregarVertice(idxCore);
+
+        // 5) Generamos el camino inicial (recto hacia arriba) y añadimos vértices + aristas
+        int prevIdx = idxCore;
+        for (int z = 1; z < height; z++)
+        {
+            Vector2Int stepGrid = new Vector2Int(coreGrid.x, z);
+            Vector3 stepWorld = new Vector3(stepGrid.x * cellSize, 0f, stepGrid.y * cellSize);
+
+            // Reemplazamos la celda por un pathPrefab
+            if (gridCells.TryGetValue(stepGrid, out var cellToRemove))
+            {
+                Destroy(cellToRemove);
+                gridCells.Remove(stepGrid);
+            }
+            Instantiate(pathPrefab, stepWorld, Quaternion.identity, tileCore.transform);
+
+            // Guardamos para visual y lógica de spawn
+            pathPositions.Add(stepWorld);
+            currentPathEnd = stepGrid;
+
+            // GRAFO: agregamos vértice + arista desde el paso anterior
+            int thisIdx = stepGrid.y * WORLD_WIDTH + stepGrid.x;
+            grafo.AgregarVertice(thisIdx);
+            grafo.AgregarArista(0, prevIdx, thisIdx, 1);
+            prevIdx = thisIdx;
+        }
+
+        // 6) Marcamos que ya tenemos un tile completo
+        tileCount = 1;
+    }
+    void AddTileToGraph(Vector2Int prevExitGlobal, List<Vector2Int> rotatedOffsets)
+    {
+        int prevIdx = prevExitGlobal.y * WORLD_WIDTH + prevExitGlobal.x;
+
+        foreach (var local in rotatedOffsets)
+        {
+            Vector2Int g = prevExitGlobal + local;
+            int idx = g.y * WORLD_WIDTH + g.x;
+            grafo.AgregarVertice(idx);
+            grafo.AgregarArista(0, prevIdx, idx, 1);
+            prevIdx = idx;
+        }
+    }
+    public List<TileExpansion> GetTileOptions()
+    {
+        List<TileExpansion> tiles = new()
+    {
+        // Recto: entra abajo centro, sale arriba centro
+        new TileExpansion("Recto",
+            new[] {
+                new Vector2Int(2, 0),
+                new Vector2Int(2, 1),
+                new Vector2Int(2, 2),
+                new Vector2Int(2, 3),
+                new Vector2Int(2, 4)
+            },
+            new Vector2Int(2, 0), // entrada
+            new Vector2Int(2, 4)  // salida
+        ),
+
+        // L-Shape: entra abajo centro, sale derecha centro
+        new TileExpansion("L-Shape",
+            new[] {
+                new Vector2Int(2, 0),
+                new Vector2Int(2, 1),
+                new Vector2Int(2, 2),
+                new Vector2Int(3, 2),
+                new Vector2Int(4, 2)
+            },
+            new Vector2Int(2, 0), // entrada
+            new Vector2Int(4, 2)  // salida
+        ),
+
+        // L-Inverso: entra abajo centro, sale izquierda centro
+        new TileExpansion("L-Inverso",
+            new[] {
+                new Vector2Int(2, 0),
+                new Vector2Int(2, 1),
+                new Vector2Int(2, 2),
+                new Vector2Int(1, 2),
+                new Vector2Int(0, 2)
+            },
+            new Vector2Int(2, 0), // entrada
+            new Vector2Int(0, 2)  // salida
+        )
+    };
+
+        // ---- CRUZ: entrada y hasta 2 salidas random ----
+
+        // Definí los posibles bordes centrales
+        var bordesCentro = new List<Vector2Int>
+    {
+        new Vector2Int(2, 0), // abajo
+        new Vector2Int(4, 2), // derecha
+        new Vector2Int(2, 4), // arriba
+        new Vector2Int(0, 2)  // izquierda
+    };
+
+        // Elegí entrada al azar
+        int idxEntrada = Random.Range(0, bordesCentro.Count);
+        Vector2Int entrada = bordesCentro[idxEntrada];
+
+        // Salidas posibles (no la entrada)
+        var posiblesSalidas = bordesCentro.Where((v, idx) => idx != idxEntrada).ToList();
+        // Mezclar y elegir hasta 2 salidas
+        posiblesSalidas = posiblesSalidas.OrderBy(x => Random.value).Take(2).ToList();
+
+        // Calculá el centro
+        Vector2Int centro = new Vector2Int(2, 2);
+
+        // Offsets para la cruz: entrada?centro, y del centro?cada salida
+        List<Vector2Int> offsets = new List<Vector2Int>();
+
+        // Camino de entrada a centro
+        Vector2Int dirEntrada = PasoUnitario(entrada, centro);
+        for (Vector2Int pos = entrada; pos != centro; pos += dirEntrada)
+            offsets.Add(pos);
+        offsets.Add(centro);
+
+        // Caminos centro a cada salida
+        foreach (var salida in posiblesSalidas)
+        {
+            Vector2Int dirSalida = PasoUnitario(centro, salida);
+            for (Vector2Int pos = centro + dirSalida; pos != salida + dirSalida; pos += dirSalida)
+                offsets.Add(pos);
+        }
+
+        // TileExpansion de la cruz (primer salida como salida "principal")
+        tiles.Add(new TileExpansion(
+            "Cruz",
+            offsets.ToArray(),
+            entrada,
+            posiblesSalidas[0] // usá la primera como salida principal
+        ));
+
+        return tiles;
+    }
+
+void ExpandGridIfNeeded(Vector2Int position)
+    {
+        if (!gridCells.ContainsKey(position))
+        {
+            Vector3 pos = new Vector3(position.x * cellSize, 0, position.y * cellSize);
+            gridCells[position] = Instantiate(cellPrefab, pos, Quaternion.identity, transform);
+
+        }
+    }
+    public void ApplyTileExpansionAtWorldPosition(TileExpansion tile, Vector3 _unused)
+    {
+        // 1) Offset: calculá dónde debe ir el tile parent
+        Vector2Int prevExit = currentPathEnd; // Posición global donde termina el camino anterior
+        Vector3 tileParentWorldPos = new Vector3(
+            prevExit.x * cellSize - tile.entrada.x * cellSize,
+            0f,
+            prevExit.y * cellSize - tile.entrada.y * cellSize
         );
-        Vector3 tileVisualOffset;
-        if (tileIndex == 0)
+
+        // 2) Instanciación visual (parent del tile)
+        GameObject parent = new GameObject($"Tile_{tileCount}");
+        parent.transform.parent = transform;
+        parent.transform.position = tileParentWorldPos;
+
+        var pathSet = new HashSet<Vector2Int>(tile.pathOffsets);
+
+        // Instanciar el camino (evitá el primer nodo si tileCount > 0)
+        for (int i = 0; i < tile.pathOffsets.Count; i++)
         {
-            tileVisualOffset = Vector3.zero;
+            Vector2Int local = tile.pathOffsets[i];
+            // Saltar la entrada (el primer punto) para no solaparse
+            if (local == tile.entrada && tileCount > 0)
+                continue;
+            Vector3 worldPos = new Vector3(local.x * cellSize, 0, local.y * cellSize) + tileParentWorldPos;
+            Instantiate(pathPrefab, worldPos, Quaternion.identity, parent.transform);
+            pathPositions.Add(worldPos);
         }
-        else
+
+        // Instanciar el resto de celdas
+        for (int y = 0; y < tile.tileSize.y; y++)
         {
-            // Alinear la entrada de este tile con la última salida global del anterior
-            tileVisualOffset = lastExitWorldPos - entradaLocalWorld;
+            for (int x = 0; x < tile.tileSize.x; x++)
+            {
+                Vector2Int off = new Vector2Int(x, y);
+                if (!pathSet.Contains(off))
+                {
+                    Vector3 worldPos = new Vector3(x * cellSize, 0, y * cellSize) + tileParentWorldPos;
+                    Instantiate(cellPrefab, worldPos, Quaternion.identity, parent.transform);
+                }
+            }
         }
 
-        Vector2Int anteriorSalida = lastExitLocal; // o guardá la última salida local/global
-        Vector2Int nuevaEntrada = forma.entrada;
+        // 3) GRAFO: Conexión de camino del tile con camino global
+        // Hacé todos los nodos del tile en coordenadas globales, luego conectá
+        int worldWidth = 100000; // o el que uses
+        List<int> tileIndices = new List<int>();
+        foreach (var local in tile.pathOffsets)
+        {
+            Vector2Int global = prevExit + (local - tile.entrada);
+            int idx = global.y * worldWidth + global.x;
+            grafo.AgregarVertice(idx);
+            tileIndices.Add(idx);
+        }
+        // Uní los nodos dentro del tile
+        for (int i = 1; i < tileIndices.Count; i++)
+            grafo.AgregarArista(0, tileIndices[i - 1], tileIndices[i], 1);
 
-        // Diferencia entre las posiciones (puede ser +1 en x, +1 en y, etc.)
-        Vector2Int diff = nuevaEntrada - anteriorSalida;
-
-        // Determiná la rotación
-        float rotationY = 0f;
-        if (diff == Vector2Int.up) rotationY = 180f;
-        else if (diff == Vector2Int.right) rotationY = -90f;
-        else if (diff == Vector2Int.left) rotationY = 90f;
-        // else (down): rotationY = 0 (por default)
-
-        // --- Instanciá el tile agrupando los prefabs bajo un parent ---
-        InstanciarTile(tileOffset, path, tileIndex == 0, tileIndex, forma, tileVisualOffset, tileInfo.vertices, tileInfo.aristas);
-
-
-        // --- Guardá el offset de este tile (si necesitás una lista de offsets) ---
-        if (tileOffsets.Count <= tileIndex)
-            tileOffsets.Add(tileVisualOffset);
-        else
-            tileOffsets[tileIndex] = tileVisualOffset;
-
-        // --- Guardar la salida real (mundial) para el próximo tile ---
-        int idxSalida = Random.Range(0, forma.salidas.Count);
-        Vector2Int salidaLocal = forma.salidas[idxSalida];
-        Vector3 salidaWorld = new Vector3(
-            salidaLocal.x * cellSize, 0.1f, salidaLocal.y * cellSize
-        ) + tileVisualOffset;
-        lastExitWorldPos = salidaWorld;
-        lastExitLocal = salidaLocal;
-
-        // --- Guardar la posición de entrada global ---
-        if (tileIndex == 0)
-            pathEntrancesWorld.Add(entradaLocalWorld);
-        else
-            pathEntrancesWorld.Add(tileVisualOffset + entradaLocalWorld);
-
+        // 4) Estado global
+        currentPathEnd = prevExit + (tile.salida - tile.entrada);
         tileCount++;
     }
-
-    List<int> ObtenerCaminoBFS(int start, int end)
+    public void ExpandPathWithRandomTile()
     {
-        Queue<int> queue = new Queue<int>();
-        Dictionary<int, int> prev = new Dictionary<int, int>();
-        queue.Enqueue(start);
-        prev[start] = -1;
+        // 1. Elegí el tipo de tile que quieras (acá es aleatorio)
+        List<TileExpansion> options = GetTileOptions(); // O tu propio método de selección
+        TileExpansion selected = options[UnityEngine.Random.Range(0, options.Count)];
 
-        while (queue.Count > 0)
+        // 2. Obtené la posición donde debe colocarse el tile (en general, el offset correcto)
+        Vector3 lastWorldPos = GetLastPathWorldPosition();
+
+        // 3. Expandí el camino (si worldPosition es necesario en tu lógica de preview, pasalo)
+        ApplyTileExpansionAtWorldPosition(selected, lastWorldPos);
+    }
+    private List<Vector2Int> RotateOffsets(List<Vector2Int> original, Vector2Int direction)
+    {
+        List<Vector2Int> rotated = new();
+
+        foreach (var offset in original)
         {
-            int curr = queue.Dequeue();
-            if (curr == end)
+            Vector2Int rotatedOffset = offset;
+
+            if (direction == Vector2Int.right)
             {
-                // reconstruir el camino
-                List<int> path = new List<int>();
-                int node = end;
-                while (node != -1)
-                {
-                    path.Add(node);
-                    node = prev[node];
-                }
-                path.Reverse();
-                return path;
+                rotatedOffset = new Vector2Int(offset.y, -offset.x);
             }
-            // vecinos (busca todos los que están conectados por arista)
-            for (int i = 0; i < grafo.cantNodos; i++)
+            else if (direction == Vector2Int.down)
             {
-                if (grafo.MAdy[grafo.Vert2Indice(curr), i] != 0)
-                {
-                    int vecino = grafo.Etiqs[i];
-                    if (!prev.ContainsKey(vecino))
-                    {
-                        queue.Enqueue(vecino);
-                        prev[vecino] = curr;
-                    }
-                }
+                rotatedOffset = new Vector2Int(-offset.x, -offset.y);
             }
-        }
-        return null; // no hay camino
-    }
-
-    void InstanciarTile(int offset, List<int> path, bool isFirstTile, int tileIndex, TileShape forma, Vector3 tileVisualOffset, List<int> vertices, List<(int, int, int)> aristas)
-    {
-        GameObject tileParent = new GameObject($"Tile_{tileIndex}_Parent");
-        tileParent.transform.parent = this.transform;
-        tileParent.transform.position = tileVisualOffset;
-        tileParent.transform.rotation = Quaternion.Euler(0, 0, 0); // agregar rotationY
-
-        HashSet<Vector2Int> posicionesCamino = new HashSet<Vector2Int>();
-        if (isFirstTile && path.Count > 0)
-        {
-            int idxCore = path[0] - offset;
-            int px = idxCore % tileSize;
-            int py = idxCore / tileSize;
-            Vector3 corePos = new Vector3(px * cellSize, 0.2f, py * cellSize) + tileVisualOffset;
-            Instantiate(corePrefab, corePos, Quaternion.identity, tileParent.transform);
-        }
-        foreach (int idx in path)
-        {
-            int local = idx - offset;
-            int px = local % tileSize;
-            int py = local / tileSize;
-            posicionesCamino.Add(new Vector2Int(px, py));
-            Vector3 pos = new Vector3(px * cellSize, 0.1f, py * cellSize) + tileVisualOffset;
-            Instantiate(pathPrefab, pos, Quaternion.identity, tileParent.transform);
-        }
-        for (int y = 0; y < tileSize; y++)
-            for (int x = 0; x < tileSize; x++)
-                if (!posicionesCamino.Contains(new Vector2Int(x, y)))
-                {
-                    Vector3 pos = new Vector3(x * cellSize, 0f, y * cellSize) + tileVisualOffset;
-                    Instantiate(cellPrefab, pos, Quaternion.identity, tileParent.transform);
-                }
-
-        // Extra: agregá el script con info
-        TileParentInfo info = tileParent.AddComponent<TileParentInfo>();
-        info.tileIndex = tileIndex;
-        info.vertices = new List<int>(vertices);
-        info.aristas = new List<(int, int, int)>(aristas);
-    }
-
-
-
-
-    public void AgregarTile()
-    {
-        // Aleatorio:
-        var forma = formasDeTile[Random.Range(0, formasDeTile.Count)];
-        int? lastExit = tilePaths.Count > 0 && tilePaths[^1].Count > 0 ? tilePaths[^1][^1] : (int?)null;
-        CrearTileYCamino(tileCount, lastExit, forma);
-    }
-
-    public int GetTotalPaths()
-    {
-        return tilePaths.Count;
-    }
-
-    public Vector3 GetPathEntranceWorld(int pathIndex)
-    {
-        if (pathEntrancesWorld.Count > pathIndex)
-            return pathEntrancesWorld[pathIndex];
-        else
-            return Vector3.zero;
-    }
-
-    public Vector3[] GetPathPositions(int tileIndex = 0)
-    {
-        if (tilePaths.Count > tileIndex)
-        {
-            List<int> indices = tilePaths[tileIndex];
-            List<Vector3> positions = new List<Vector3>();
-            foreach (int idx in indices)
+            else if (direction == Vector2Int.left)
             {
-                int tileOffset = tileIndex * tileSize * tileSize;
-                int local = idx - tileOffset;
-                int x = local % tileSize;
-                int y = local / tileSize;
-                Vector3 pos = new Vector3(x * cellSize + tileOffset % 100, 0.1f, y * cellSize + tileOffset / 100 * tileSize * cellSize);
-                positions.Add(pos);
+                rotatedOffset = new Vector2Int(-offset.y, offset.x);
             }
-            return positions.ToArray();
+            // if direction == up, keep original
+
+            rotated.Add(rotatedOffset);
         }
-        else
-        {
-            Debug.LogWarning("No existe ese tile.");
-            return new Vector3[0];
-        }
+
+        return rotated;
     }
-    public Vector3[] GetFullPathPositionsForward()
+    public bool IsTileAtPosition(Vector2Int pos)
     {
-        List<Vector3> globalPath = new List<Vector3>();
+        return placedTiles.Any(p => p.basePosition == pos);
+    }
+#if UNITY_EDITOR
+    void OnDrawGizmos()
+    {
+        if (!Application.isPlaying) return;
 
-        // Recorre todos los tiles en orden de generación
-        for (int tileIndex = 0; tileIndex < tilePaths.Count; tileIndex++)
+        // --- Mostrar tiles ya colocados (cyan) ---
+        Gizmos.color = Color.cyan;
+        foreach (var tile in placedTiles)
         {
-            List<int> indices = tilePaths[tileIndex];
-            Vector3 tileOffset = tileOffsets[tileIndex]; // Usa el offset guardado de ese tile
+            Vector3 center = new Vector3((tile.basePosition.x + 2) * cellSize, 0, (tile.basePosition.y + 2) * cellSize);
+            Gizmos.DrawWireCube(center + Vector3.up * 0.1f, new Vector3(5 * cellSize, 0.1f, 5 * cellSize));
+            UnityEditor.Handles.Label(center + Vector3.up * 0.3f, tile.name);
+        }
 
-            foreach (int idx in indices)
+        // --- Mostrar adyacentes ocupados (rojo) ---
+        Vector2Int[] directions = new[]
+        {
+        Vector2Int.up * 5,
+        Vector2Int.down * 5,
+        Vector2Int.left * 5,
+        Vector2Int.right * 5
+    };
+
+        HashSet<Vector2Int> allTilePositions = new(placedTiles.Select(p => p.basePosition));
+
+        foreach (var tile in placedTiles)
+        {
+            foreach (var dir in directions)
             {
-                int local = idx - tileIndex * tileSize * tileSize;
-                int x = local % tileSize;
-                int y = local / tileSize;
-                Vector3 pos = new Vector3(x * cellSize, 0.1f, y * cellSize) + tileOffset;
-                globalPath.Add(pos);
+                Vector2Int adjacent = tile.basePosition + dir;
+                if (!allTilePositions.Contains(adjacent)) continue;
+
+                Vector3 center = new Vector3((adjacent.x + 2) * cellSize, 0, (adjacent.y + 2) * cellSize);
+                Gizmos.color = Color.red;
+                Gizmos.DrawWireCube(center + Vector3.up * 0.05f, new Vector3(5 * cellSize, 0.1f, 5 * cellSize));
             }
         }
-        return globalPath.ToArray();
-    }
 
+        // --- Tile siguiente (azul) ---
+        Vector2Int pathDir = GetPathDirection();
+        Vector2Int tileOffset = Vector2Int.zero;
 
+        if (pathDir == Vector2Int.up)
+            tileOffset = new Vector2Int(-5 / 2, 1);
+        else if (pathDir == Vector2Int.right)
+            tileOffset = new Vector2Int(1, -5 / 2);
+        else if (pathDir == Vector2Int.down)
+            tileOffset = new Vector2Int(-5 / 2, -5);
+        else if (pathDir == Vector2Int.left)
+            tileOffset = new Vector2Int(-5, -5 / 2);
 
-    // Opcional: para obtener la posición de entrada del último tile (donde debe spawnear el enemigo)
-    public Vector3 GetLastTileEntryWorldPos()
-    {
-        if (pathEntrancesWorld.Count > 0)
-            return pathEntrancesWorld[pathEntrancesWorld.Count - 1];
-        else
-            return Vector3.zero;
-    }
+        Vector2Int nextBottomLeft = GetLastPathGridPosition() + tileOffset;
 
+        Vector3 blueCenter = new Vector3(
+            (nextBottomLeft.x + 2) * cellSize,
+            0,
+            (nextBottomLeft.y + 2) * cellSize
+        );
 
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireCube(blueCenter + Vector3.up * 0.15f, new Vector3(5 * cellSize, 0.1f, 5 * cellSize));
 
-    [System.Serializable]
-    public class TileShape
-    {
-        public string nombre;
-        public List<Vector2Int> camino; // celdas del tile que son camino
-        public Vector2Int entrada;      // celda de entrada relativa
-        public List<Vector2Int> salidas;// celdas de salida relativas (puede haber varias)
-        public List<(Vector2Int from, Vector2Int to)> conexiones; // conexiones internas
-
-        public TileShape(string nombre, List<Vector2Int> camino, Vector2Int entrada, List<Vector2Int> salidas, List<(Vector2Int, Vector2Int)> conexiones)
+        // --- Adyacentes del próximo tile (naranja/violeta) con tile sugerido ---
+        Vector2Int[] localDirs = new[]
         {
-            this.nombre = nombre;
-            this.camino = camino;
-            this.entrada = entrada;
-            this.salidas = salidas;
-            this.conexiones = conexiones;
+        Vector2Int.up * 5,
+        Vector2Int.down * 5,
+        Vector2Int.left * 5,
+        Vector2Int.right * 5
+    };
+
+        foreach (var dir in localDirs)
+        {
+            Vector2Int adjacent = nextBottomLeft + dir;
+
+            // No mostrar si es de donde vino el camino
+            if (adjacent == currentPathEnd)
+                continue;
+
+            Vector3 center = new Vector3((adjacent.x + 2) * cellSize, 0, (adjacent.y + 2) * cellSize);
+
+            // Color según si hay tile en esa posición
+            Gizmos.color = allTilePositions.Contains(adjacent)
+                ? new Color(0.6f, 0f, 0.8f)   //  Violeta (ocupado)
+                : new Color(1f, 0.5f, 0f);    //  Naranja (libre)
+
+            Gizmos.DrawWireCube(center + Vector3.up * 0.05f, new Vector3(5 * cellSize, 0.1f, 5 * cellSize));
+
+            // --- Mostrar nombre del tile sugerido ---
+            Vector2Int delta = adjacent - nextBottomLeft;
+            string sugerido = "";
+
+            if (delta == pathDir * 5)
+                sugerido = "Recto";
+            else if (
+                (pathDir == Vector2Int.up && delta == Vector2Int.right * 5) ||
+                (pathDir == Vector2Int.right && delta == Vector2Int.down * 5) ||
+                (pathDir == Vector2Int.down && delta == Vector2Int.left * 5) ||
+                (pathDir == Vector2Int.left && delta == Vector2Int.up * 5))
+                sugerido = "L-Shape";
+            else if (
+                (pathDir == Vector2Int.up && delta == Vector2Int.left * 5) ||
+                (pathDir == Vector2Int.left && delta == Vector2Int.down * 5) ||
+                (pathDir == Vector2Int.down && delta == Vector2Int.right * 5) ||
+                (pathDir == Vector2Int.right && delta == Vector2Int.up * 5))
+                sugerido = "L-Inverso";
+
+            if (!string.IsNullOrEmpty(sugerido))
+                UnityEditor.Handles.Label(center + Vector3.up * 0.2f, sugerido);
         }
+    }
+#endif
+
+    Vector2Int GetPathDirection()
+    {
+        if (pathPositions.Count < 2) return Vector2Int.up;
+        var a = pathPositions[^2];
+        var b = pathPositions[^1];
+        return new Vector2Int(
+            Mathf.RoundToInt(b.x / cellSize) - Mathf.RoundToInt(a.x / cellSize),
+            Mathf.RoundToInt(b.z / cellSize) - Mathf.RoundToInt(a.z / cellSize)
+        );
+    }
+    public Vector2Int GetLastPathGridPosition()
+    {
+        if (pathPositions.Count == 0)
+            return Vector2Int.zero;
+
+        Vector3 lastWorld = pathPositions[^1];
+        return new Vector2Int(
+            Mathf.RoundToInt(lastWorld.x / cellSize),
+            Mathf.RoundToInt(lastWorld.z / cellSize)
+        );
+    }
+
+    public Vector3[] GetPathPositions()
+    {
+        return pathPositions.ToArray();
+    }
+
+    Vector3 GetLastPathWorldPosition()
+    {
+        if (pathPositions.Count > 0)
+            return pathPositions[^1];
+        return Vector3.zero;
+    }
+
+    public void ShowPreviewTile(TileExpansion tile)
+    {
+        ClearCurrentPreview();
+
+        Vector2Int pathDir = GetPathDirection();
+        Vector2Int center = GetLastPathGridPosition() + pathDir;
+        Vector3 worldPos = new Vector3(center.x * cellSize, 0, center.y * cellSize);
+
+
+        GameObject preview = Instantiate(tilePreviewPrefab, worldPos, Quaternion.identity);
+        //preview.GetComponent<PreviewClickable>().Initialize(tile, worldPos);
+
+        currentPreview = preview;
+    }
+    public void ClearCurrentPreview()
+    {
+        if (currentPreview != null)
+        {
+            Destroy(currentPreview);
+            currentPreview = null;
+        }
+    }
+    public List<string> GetDisabledTileNamesFromNextAdyacents()
+    {
+        List<string> disabledTiles = new();
+
+        Vector2Int pathDir = GetPathDirection();
+        Vector2Int tileOffset = Vector2Int.zero;
+
+        if (pathDir == Vector2Int.up)
+            tileOffset = new Vector2Int(-5 / 2, 1);
+        else if (pathDir == Vector2Int.right)
+            tileOffset = new Vector2Int(1, -5 / 2);
+        else if (pathDir == Vector2Int.down)
+            tileOffset = new Vector2Int(-5 / 2, -5);
+        else if (pathDir == Vector2Int.left)
+            tileOffset = new Vector2Int(-5, -5 / 2);
+
+        Vector2Int nextBottomLeft = GetLastPathGridPosition() + tileOffset;
+
+        Vector2Int[] localDirs = new[]
+        {
+        Vector2Int.up * 5,
+        Vector2Int.down * 5,
+        Vector2Int.left * 5,
+        Vector2Int.right * 5
+    };
+
+        HashSet<Vector2Int> allTilePositions = new(placedTiles.Select(p => p.basePosition));
+
+        foreach (var dir in localDirs)
+        {
+            Vector2Int adjacent = nextBottomLeft + dir;
+            if (adjacent == currentPathEnd) continue;
+
+            if (!allTilePositions.Contains(adjacent)) continue;
+
+            Vector2Int delta = adjacent - nextBottomLeft;
+            string sugerido = "";
+
+            if (delta == pathDir * 5)
+                sugerido = "Recto";
+            else if (
+                (pathDir == Vector2Int.up && delta == Vector2Int.right * 5) ||
+                (pathDir == Vector2Int.right && delta == Vector2Int.down * 5) ||
+                (pathDir == Vector2Int.down && delta == Vector2Int.left * 5) ||
+                (pathDir == Vector2Int.left && delta == Vector2Int.up * 5))
+                sugerido = "L-Shape";
+            else if (
+                (pathDir == Vector2Int.up && delta == Vector2Int.left * 5) ||
+                (pathDir == Vector2Int.left && delta == Vector2Int.down * 5) ||
+                (pathDir == Vector2Int.down && delta == Vector2Int.right * 5) ||
+                (pathDir == Vector2Int.right && delta == Vector2Int.up * 5))
+                sugerido = "L-Inverso";
+
+            if (!string.IsNullOrEmpty(sugerido) && !disabledTiles.Contains(sugerido))
+                disabledTiles.Add(sugerido);
+        }
+
+        return disabledTiles;
+    }
+
+    private Vector2Int PasoUnitario(Vector2Int desde, Vector2Int hasta)
+    {
+        int dx = Mathf.Clamp(hasta.x - desde.x, -1, 1);
+        int dy = Mathf.Clamp(hasta.y - desde.y, -1, 1);
+        return new Vector2Int(dx, dy);
+    }
+}
+
+[System.Serializable]
+public class TileExpansion
+{
+    public string tileName;
+    public Vector2Int tileSize = new Vector2Int(5, 5);
+    public List<Vector2Int> pathOffsets;
+
+    // --- AGREGAR ---
+    public Vector2Int entrada; // Coordenada local donde inicia el camino del tile
+    public Vector2Int salida;  // Coordenada local donde termina el camino del tile
+
+    public TileExpansion(string name, Vector2Int[] offsets, Vector2Int entrada, Vector2Int salida)
+    {
+        tileName = name;
+        pathOffsets = new List<Vector2Int>(offsets);
+        this.entrada = entrada;
+        this.salida = salida;
+    }
+}
+
+[System.Serializable]
+public class PlacedTileData
+{
+    public string name;
+    public Vector2Int basePosition;
+
+    public PlacedTileData(string name, Vector2Int basePosition)
+    {
+        this.name = name;
+        this.basePosition = basePosition;
     }
 }

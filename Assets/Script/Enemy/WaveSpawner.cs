@@ -48,7 +48,6 @@ public class WaveSpawner : MonoBehaviour
         waveRoutine = StartCoroutine(StartWaveSystem());
     }
 
-
     IEnumerator StartWaveSystem()
     {
         yield return new WaitForSeconds(2f);
@@ -90,7 +89,6 @@ public class WaveSpawner : MonoBehaviour
         }
     }
 
-
     IEnumerator StartWaveDelay()
     {
         float timer = 30f;
@@ -98,7 +96,7 @@ public class WaveSpawner : MonoBehaviour
         isStartingNextWave = false;
         nextWaveButton.gameObject.SetActive(true);
         nextWaveButton.interactable = false;
-        
+
         gridIsExpanding = false;
 
         nextWaveButton.interactable = true;
@@ -130,160 +128,105 @@ public class WaveSpawner : MonoBehaviour
             nextWaveButton.gameObject.SetActive(false);
             countdownText.text = "";
             StartNextWave();
-
         }
     }
 
     public void StartNextWave()
     {
         if (waveInProgress) return;
-
         StartCoroutine(WaitForPathAndSpawn());
     }
 
     IEnumerator WaitForPathAndSpawn()
     {
-        // 1. Expande el mapa antes de la oleada
-        gridManager.AgregarTile();
-        yield return null; // O esperar a que termine de instanciar (por si es async)
+        gridManager.ExpandPathWithRandomTile(); // O tu selección de UI
 
-        // 2. Ahora sí, obtenés el path del nuevo tile
-        int lastPathIndex = gridManager.GetTotalPaths() - 1;
-        Vector3[] pathPositions = gridManager.GetPathPositions(lastPathIndex);
+        yield return null; // espera a que termine la expansión visual
 
-        if (pathPositions == null || pathPositions.Length == 0)
+        // 1. Obtener el camino actualizado
+        Vector3[] fullPath = gridManager.GetPathPositions();
+        //Debug.Log("[PATH] --- Puntos del camino:");
+        for (int i = 0; i < fullPath.Length; i++)
+        {
+            //Debug.Log($"[{i}] {fullPath[i]}");
+        }
+
+        if (fullPath == null || fullPath.Length == 0)
         {
             Debug.LogError("[WaveSpawner] No se generó ningún camino. Abortando oleada.");
             yield break;
         }
 
+        // INVIERTE el camino si el primero es el core
+        if (Vector3.Distance(core.transform.position, fullPath[0]) < 0.5f)
+        {
+            System.Array.Reverse(fullPath);
+        }
+
+        Vector3 spawnPos = fullPath[0]; // Ahora el primero es el punto de inicio (lejos del core)
+
         currentWave++;
         waveInProgress = true;
-        // Ahora podés spawnear los enemigos correctamente sobre el nuevo tile/path
-        StartCoroutine(SpawnWave());
+        StartCoroutine(SpawnWave(fullPath.ToList(), spawnPos));
     }
 
 
-    public void EnemyKilled(Enemy enemy)
-    {
-        enemiesAlive--;
-        //Debug.Log($"Enemy eliminado. Enemigos vivos restantes: {enemiesAlive}");
-
-    }
-
-    IEnumerator SpawnWave()
+    IEnumerator SpawnWave(List<Vector3> fullPath, Vector3 spawnPos)
     {
         bool isBossWave = currentWave % 15 == 0;
         bool isMiniBossWave = currentWave % 5 == 0 && !isBossWave;
 
-        int extraEnemies = 0;
-        if (isMiniBossWave) extraEnemies++;
-        if (isBossWave) extraEnemies++;
-
+        int extraEnemies = (isBossWave ? 1 : 0) + (isMiniBossWave ? 1 : 0);
         int totalEnemies = enemiesPerWave + (currentWave - 1) * 4 + extraEnemies;
         enemiesAlive = totalEnemies;
 
-        Debug.Log($"Oleada {currentWave} iniciada. Spawneando {enemiesAlive} enemigos.");
+        //Debug.Log($"Oleada {currentWave} iniciada. Spawneando {enemiesAlive} enemigos.");
 
-        waveInProgress = true;
+        // Antes de entrar al for:
+        Vector3[] path = fullPath.ToArray();
+        spawnPos = path[path.Length - 1]; // <- ÚLTIMA POSICIÓN
 
-        Vector3[] fullPath = gridManager.GetFullPathPositionsForward();
-        Vector3 spawnPos = gridManager.GetLastTileEntryWorldPos();
-
+        // spawn normales
         for (int i = 0; i < totalEnemies - extraEnemies; i++)
         {
-            if (fullPath == null || fullPath.Length == 0)
-                continue;
+            var go = EnemyPool.Instance.GetEnemy("Slow");
+            var e = go.GetComponent<Enemy>();
 
-            // Instanciá al enemigo en la entrada del último tile
-            GameObject enemyGO = EnemyPool.Instance.GetEnemy("Slow");
-            enemyGO.transform.position = spawnPos;
-            Enemy enemy = enemyGO.GetComponent<Enemy>();
-            enemy.enemyType = "Slow";
-            enemy.InitializePath(fullPath, core, this, gridManager);
+            go.transform.position = spawnPos; // SPAWN EN EL FINAL
+
+            e.enemyType = "Slow";
+
+            // Pasa el path completo
+            e.InitializePath(path, core, this, gridManager);
+
+            //Debug.Log($"[SPAWN ENEMY] Instanciando enemigo en: {spawnPos}");
 
             yield return new WaitForSeconds(1f);
         }
 
-        // BOSS/MINIBOSS (idéntico pero podés cambiar el tipo)
-        if (isBossWave)
-        {
-            GameObject bossGO = EnemyPool.Instance.GetEnemy("Boss");
-            bossGO.transform.position = spawnPos;
-            Enemy bossEnemy = bossGO.GetComponent<Enemy>();
-            bossEnemy.enemyType = "Boss";
-            bossEnemy.InitializePath(fullPath, core, this, gridManager);
-            yield return new WaitForSeconds(1f);
-        }
-        else if (isMiniBossWave)
-        {
-            GameObject miniBossGO = EnemyPool.Instance.GetEnemy("MiniBoss");
-            miniBossGO.transform.position = spawnPos;
-            Enemy miniBoss = miniBossGO.GetComponent<Enemy>();
-            miniBoss.enemyType = "MiniBoss";
-            miniBoss.InitializePath(fullPath, core, this, gridManager);
-            yield return new WaitForSeconds(1f);
-        }
+
+        // spawn mini-boss / boss
+        if (isMiniBossWave)
+            yield return SpawnSpecial("MiniBoss", fullPath, spawnPos);
+        else if (isBossWave)
+            yield return SpawnSpecial("Boss", fullPath, spawnPos);
     }
 
-
-    void SpawnEnemy()
+    IEnumerator SpawnSpecial(string type, List<Vector3> fullPath, Vector3 spawnPos)
     {
-        Vector3[] pathPositions = gridManager.GetFullPathPositionsForward();
-        if (pathPositions == null || pathPositions.Length == 0)
-        {
-            Debug.LogError("[WaveSpawner] Path inválido, no se puede spawnear enemigo.");
-            return;
-        }
-
-        GameObject enemyGO = EnemyPool.Instance.GetEnemy("Slow"); // o el tipo que quieras
-        if (enemyGO == null)
-        {
-            Debug.LogError("[WaveSpawner] EnemyPool no devolvió un prefab válido.");
-            return;
-        }
-
-        // ¡Spawnear SIEMPRE en el ÚLTIMO punto del path!
-        enemyGO.transform.position = gridManager.GetLastTileEntryWorldPos();
-
-        Enemy enemy = enemyGO.GetComponent<Enemy>();
-        enemy.enemyType = "Slow";
-        enemy.InitializePath(pathPositions, core, this, gridManager);
+        var go = EnemyPool.Instance.GetEnemy(type);
+        go.transform.position = spawnPos;
+        var e = go.GetComponent<Enemy>();
+        e.enemyType = type;
+        e.InitializePath(fullPath.ToArray(), core, this, gridManager);
+        yield return new WaitForSeconds(1f);
     }
 
-
-    void SpawnSpecificEnemy(Vector3[] pathPositions, string enemyType)
+    public void EnemyKilled(Enemy enemy)
     {
-        if (pathPositions == null || pathPositions.Length == 0)
-        {
-            Debug.LogError("[WaveSpawner] Path inválido, no se puede spawnear enemigo.");
-            return;
-        }
-
-        GameObject enemyGO = EnemyPool.Instance.GetEnemy(enemyType);
-        if (enemyGO == null)
-        {
-            Debug.LogError("[WaveSpawner] EnemyPool no devolvió un prefab válido para " + enemyType);
-            return;
-        }
-
-        // SPAWNEA AL FINAL DEL ARRAY
-        enemyGO.transform.position = gridManager.GetLastTileEntryWorldPos();
-
-        // PASA EL ARRAY Y UN FLAG DE DIRECCIÓN
-        Enemy enemy = enemyGO.GetComponent<Enemy>();
-        if (enemy == null)
-        {
-            Debug.LogError("[WaveSpawner] El prefab no tiene script Enemy");
-            return;
-        }
-        enemy.enemyType = enemyType;
-        // PASA UN FLAG PARA IR AL REVÉS, o reordena el array
-        enemy.InitializePath(pathPositions, core, this, gridManager);
+        enemiesAlive--;
+        // Otros efectos al matar un enemigo
     }
-
-
-
 
     public void RegisterGoldTurret(GoldTurret turret)
     {

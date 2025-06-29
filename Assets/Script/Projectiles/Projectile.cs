@@ -67,7 +67,7 @@ public class Projectile : MonoBehaviour
         if (isSlowing && target != null)
         {
             Enemy e = target.GetComponent<Enemy>();
-            e.ApplySlow(slowAmount, slowDuration);
+            //e.ApplySlow(slowAmount, slowDuration);
         }
 
         ReturnToPool();
