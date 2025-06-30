@@ -17,7 +17,6 @@ public class Projectile : MonoBehaviour
     public bool isAOE = false;
     public float explosionRadius = 0f;
 
-    // Método llamado desde la torreta al disparar
     public void Initialize(Transform targetEnemy, Turret turret)
     {
         target = targetEnemy;
@@ -63,7 +62,6 @@ public class Projectile : MonoBehaviour
             ApplyDamage(target.GetComponent<Enemy>());
         }
 
-        // Aplicar slow si corresponde
         if (isSlowing && target != null)
         {
             Enemy e = target.GetComponent<Enemy>();
@@ -84,12 +82,10 @@ public class Projectile : MonoBehaviour
     {
         if (enemy == null) return;
 
-        float damageToApply = sourceTurret.damage; // Daño de la torreta que disparó
+        float damageToApply = sourceTurret.damage; 
 
-        enemy.TakeDamage(damageToApply); // Suponiendo que Enemy.cs tiene ese método
+        enemy.TakeDamage(damageToApply); 
 
-        // Registrar daño total hecho
-        sourceTurret.totalDamageDealt += damageToApply;
     }
 
 }

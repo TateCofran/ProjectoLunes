@@ -4,11 +4,6 @@ using UnityEngine;
 
 public class Turret : MonoBehaviour
 {
-    [Header("Árbol de mejoras")]
-    public ArbolDeMejoras arbolDeMejoras;
-    public MejoraNodo nodoActual;
-    public string torretaID = "Normal";
-
     [HideInInspector] public TurretData turretData;
 
     [Header("Stats")]
@@ -31,69 +26,16 @@ public class Turret : MonoBehaviour
     public int circleSegments = 60;
 
     public string turretName = "Standard Turret";
-    public float totalDamageDealt = 0f;
 
     public TurretInfoUI turretInfoUI;
     public bool isSelected = false;
     public enum TargetingMode { Closest, Farthest, HighestHealth, LowestHealth }
     public TargetingMode currentTargetingMode = TargetingMode.Closest;
-
-
     protected virtual void Start()
     {
-        if (arbolDeMejoras == null)
-            arbolDeMejoras = new ArbolDeMejoras(false);
-
-        nodoActual = arbolDeMejoras.raiz;
-        nodoActual.desbloqueada = true;
-
         if (turretInfoUI != null)
             turretInfoUI.Initialize(this);
-
-        // Aplica mejoras guardadas
-        AplicarMejorasGuardadas();
     }
-
-    void AplicarMejorasGuardadas()
-    {
-        // "oroMatar", "damage", "range", "stats"
-        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "damage"))
-            AplicarMejora(arbolDeMejoras.raiz.izquierda);
-
-        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "range"))
-            AplicarMejora(arbolDeMejoras.raiz.derecha);
-
-        if (UpgradeManager.Instance.EstaDesbloqueada(torretaID, "stats"))
-            AplicarMejora(arbolDeMejoras.raiz.izquierda.derecha);
-
-        // Si quisieras, podrías también guardar el estado de oroMatar y aplicarlo
-    }
-
-    public void AplicarMejora(MejoraNodo nodo)
-    {
-        if (nodo.damageMultiplier != 1f)
-            damage = Mathf.Round(damage * nodo.damageMultiplier);
-
-        if (nodo.rangeMultiplier != 1f)
-            range = Mathf.Round(range * nodo.rangeMultiplier);
-
-        if (nodo.fireRateMultiplier != 1f)
-            fireRate = Mathf.Round(fireRate * nodo.fireRateMultiplier);
-    }
-
-    public bool TryApplyUpgrade(MejoraNodo nodo)
-    {
-        if (nodo == null) return false;
-
-        if (arbolDeMejoras.Desbloquear(nodo))
-        {
-            AplicarMejora(nodo);
-            nodoActual = nodo;
-            return true;
-        }
-        return false;
-    }
-
 
     public void UpdateRangeCircle()
     {
@@ -103,7 +45,7 @@ public class Turret : MonoBehaviour
             float angle = Mathf.Deg2Rad * angleStep * i;
             float x = Mathf.Cos(angle) * range;
             float z = Mathf.Sin(angle) * range;
-            lineRenderer.SetPosition(i, new Vector3(x, 0.01f, z)); // 0.01 en Y para que no se tape
+            lineRenderer.SetPosition(i, new Vector3(x, 0.01f, z));
         }
     }
 
@@ -112,7 +54,7 @@ public class Turret : MonoBehaviour
         if (turretData != null && turretData.type == "support")
             return;
 
-        FindEnemyByMode(); // ya tiene todos los modos de targeting
+        FindEnemyByMode(); 
         if (currentTarget == null) return;
 
         fireCountdown -= Time.deltaTime * GameSpeedController.SpeedMultiplier;
@@ -127,13 +69,15 @@ public class Turret : MonoBehaviour
     {
         this.turretData = data;
 
-        this.range = data.range;
-        this.fireRate = data.fireRate;
-        this.damage = data.damage;
+        this.range = data.range * GameStats.TurretRangeMultiplier;
+
+        this.fireRate = Mathf.Max(0.01f, data.fireRate);
+
+        this.damage = data.damage * GameStats.TurretDamageMultiplier;
+
         this.cost = data.cost;
         this.turretName = data.name;
 
-        // Asegurar LineRenderer
         if (lineRenderer == null)
         {
             lineRenderer = GetComponent<LineRenderer>();
@@ -147,8 +91,9 @@ public class Turret : MonoBehaviour
             }
         }
 
-        UpdateRangeCircle(); // ahora sí es seguro
+        UpdateRangeCircle();
     }
+
 
 
     void FindClosestEnemy()
@@ -186,13 +131,13 @@ public class Turret : MonoBehaviour
 
         if (wasAlreadySelected)
         {
-            HideRangeLine();  // ocultar al volver a hacer click
+            HideRangeLine();
             if (turretInfoUI != null)
                 turretInfoUI.Hide();
         }
         else
         {
-            ShowRangeLine();  // mostrar al primer click
+            ShowRangeLine(); 
             if (turretInfoUI != null)
             {
                 turretInfoUI.UpdateInfo();
@@ -274,7 +219,7 @@ public class Turret : MonoBehaviour
         currentTargetingMode = (TargetingMode)(((int)currentTargetingMode + 1) % System.Enum.GetValues(typeof(TargetingMode)).Length);
         turretInfoUI.UpdateTargetModeText(currentTargetingMode);
 
-        currentTarget = null;  // <- Esto obliga a actualizar inmediatamente el target
+        currentTarget = null; 
         FindEnemyByMode();
     }
     public static void QuickSort<T>(List<T> list, System.Func<T, T, int> compare, int left, int right)

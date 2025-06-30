@@ -5,14 +5,14 @@ using UnityEngine.UI;
 public class TurretInfoUI : MonoBehaviour
 {
     public static TurretInfoUI Instance;
-    public GameObject panelUI; // referencia solo al panel que querés ocultar
+    public GameObject panelUI; 
 
     [Header("UI References")]
     public TMP_Text turretNameText;
     public TMP_Text damageText;
     public TMP_Text rangeText;
     public TMP_Text fireRateText;
-    public TMP_Text totalDamageText;
+    //public TMP_Text totalDamageText;
 
     public Button sellButton;
     public Button upgradeButton;
@@ -64,7 +64,7 @@ public class TurretInfoUI : MonoBehaviour
             damageText.text = "Genera Oro por Oleada";
             rangeText.text = "-";
             fireRateText.text = "-";
-            totalDamageText.text = "-";
+            //totalDamageText.text = "-";
 
             // Ocultar botones innecesarios
             upgradeButton.gameObject.SetActive(false);
@@ -77,7 +77,7 @@ public class TurretInfoUI : MonoBehaviour
             damageText.text = $"Daño: {currentTurret.damage}";
             rangeText.text = $"Rango: {currentTurret.range}";
             fireRateText.text = $"Velocidad: {currentTurret.fireRate}";
-            totalDamageText.text = $"Daño total: {currentTurret.totalDamageDealt}";
+            //totalDamageText.text = $"Daño total: {currentTurret.totalDamageDealt}";
 
             upgradeButton.gameObject.SetActive(true);
             sellButton.gameObject.SetActive(true);
@@ -92,17 +92,16 @@ public class TurretInfoUI : MonoBehaviour
 
     public void Hide()
     {
-        panelUI.SetActive(false); // Oculta solo el panel UI
+        panelUI.SetActive(false); 
     }
 
     public void Show()
     {
-        panelUI.SetActive(true);  // Muestra solo el panel UI
+        panelUI.SetActive(true);  
     }
 
     int GetSellValue()
     {
-        // Calcula valor de venta total, incluyendo costo base y mejoras
         int totalInvested = currentTurret.cost + Mathf.RoundToInt((upgradeCost / upgradeMultiplier - 15));
         return Mathf.RoundToInt(totalInvested * refundPercentage);
     }
@@ -137,7 +136,7 @@ public class TurretInfoUI : MonoBehaviour
             currentTurret.upgradeLevel++;
             upgradeCost = Mathf.RoundToInt(upgradeCost * upgradeMultiplier);
 
-            currentTurret.UpdateRangeCircle(); // <- Llamada importante
+            currentTurret.UpdateRangeCircle(); 
 
             UpdateInfo();
 

@@ -27,4 +27,12 @@ public class Scene : MonoBehaviour
     {
         SceneManager.LoadScene("UpgradeScene");
     }
+    public void LoseScreen()
+    {
+        SceneManager.LoadScene("LoseScreen");
+    }
+    public void WinScreen()
+    {
+        SceneManager.LoadScene("WinScreen");
+    }
 }

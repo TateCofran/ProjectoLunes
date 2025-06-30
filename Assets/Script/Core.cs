@@ -20,7 +20,7 @@ public class Core : MonoBehaviour
         if (currentHealth <= 0)
         {
             Debug.Log("¡El núcleo fue destruido!");
-            Destroy(gameObject);
+            GameManager.Instance.OnCoreDestroyed();
         }
     }
 }

@@ -17,7 +17,7 @@ public class WaveSpawner : MonoBehaviour
     public GridManager gridManager;
     public GameObject core;
 
-    public int maxWaves = 45;
+    public int maxWaves = 15;
     public int enemiesPerWave = 3;
 
     public Button nextWaveButton;
@@ -76,14 +76,14 @@ public class WaveSpawner : MonoBehaviour
                 {
                     if ((currentWave) % 3 == 0)
                     {
-                        gridIsExpanding = true;
-                        //gridManager.ExpandGrid(5, 5);
+                        GemManager.Instance.AddGemsRun(1);
                     }
                     StartCoroutine(StartWaveDelay());
                 }
                 else
                 {
                     Debug.Log("¡Ganaste! Todas las oleadas completadas.");
+                    GameManager.Instance.OnVictory();
                 }
             }
         }
@@ -141,9 +141,8 @@ public class WaveSpawner : MonoBehaviour
     {
         gridManager.ApplyRandomValidTileExpansion();
 
-        yield return null; // espera a que termine la expansión visual
+        yield return null; 
 
-        // 1. Obtener el camino actualizado
         Vector3[] fullPath = gridManager.GetPathPositions();
         //Debug.Log("[PATH] --- Puntos del camino:");
         for (int i = 0; i < fullPath.Length; i++)
@@ -156,14 +155,12 @@ public class WaveSpawner : MonoBehaviour
             Debug.LogError("[WaveSpawner] No se generó ningún camino. Abortando oleada.");
             yield break;
         }
-
-        // INVIERTE el camino si el primero es el core
         if (Vector3.Distance(core.transform.position, fullPath[0]) < 0.5f)
         {
             System.Array.Reverse(fullPath);
         }
 
-        Vector3 spawnPos = fullPath[0]; // Ahora el primero es el punto de inicio (lejos del core)
+        Vector3 spawnPos = fullPath[0];
 
         currentWave++;
         waveInProgress = true;
@@ -182,9 +179,9 @@ public class WaveSpawner : MonoBehaviour
 
         //Debug.Log($"Oleada {currentWave} iniciada. Spawneando {enemiesAlive} enemigos.");
 
-        // Antes de entrar al for:
+
         Vector3[] path = fullPath.ToArray();
-        spawnPos = path[path.Length - 1]; // <- ÚLTIMA POSICIÓN
+        spawnPos = path[path.Length - 1]; 
 
         Vector3 spawnWorldPos = path[path.Length - 1];
         Vector2Int spawnGridPos = new Vector2Int(
@@ -192,7 +189,7 @@ public class WaveSpawner : MonoBehaviour
             Mathf.RoundToInt(spawnWorldPos.z / gridManager.cellSize)
         );
 
-        Vector3 coreWorldPos = path[0]; // asumiendo que el core está en la primera posición
+        Vector3 coreWorldPos = path[0]; 
         Vector2Int coreGridPos = new Vector2Int(
             Mathf.RoundToInt(coreWorldPos.x / gridManager.cellSize),
             Mathf.RoundToInt(coreWorldPos.z / gridManager.cellSize)
@@ -205,11 +202,11 @@ public class WaveSpawner : MonoBehaviour
             var go = EnemyPool.Instance.GetEnemy("Slow");
             var e = go.GetComponent<Enemy>();
 
-            go.transform.position = spawnPos; // SPAWN EN EL FINAL
+            go.transform.position = spawnPos; 
 
             e.enemyType = "Slow";
 
-            // Pasa el path completo
+
             e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
 
             //Debug.Log($"[SPAWN ENEMY] Instanciando enemigo en: {spawnPos}");
@@ -236,8 +233,7 @@ public class WaveSpawner : MonoBehaviour
             Mathf.RoundToInt(spawnPos.x / gridManager.cellSize),
             Mathf.RoundToInt(spawnPos.z / gridManager.cellSize)
         );
-        // Si ya usás gridManager.corePos, usalo directamente. 
-        // Si no, obtenelo de fullPath[0] como antes:
+
         Vector3 coreWorldPos = fullPath[0];
         Vector2Int coreGridPos = new Vector2Int(
             Mathf.RoundToInt(coreWorldPos.x / gridManager.cellSize),
@@ -253,7 +249,6 @@ public class WaveSpawner : MonoBehaviour
     public void EnemyKilled(Enemy enemy)
     {
         enemiesAlive--;
-        // Otros efectos al matar un enemigo
     }
 
     public void RegisterGoldTurret(GoldTurret turret)

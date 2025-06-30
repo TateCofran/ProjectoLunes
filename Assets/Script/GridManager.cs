@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Assets.Script; // <- Asegurate que esté bien el namespace
+using Assets.Script; 
 
 public class GridManager : MonoBehaviour
 {
@@ -17,21 +17,19 @@ public class GridManager : MonoBehaviour
 
     // Grafo
     GrafoMA grafo = new GrafoMA();
-    Dictionary<Vector2Int, int> celdaToVertice = new Dictionary<Vector2Int, int>(); // Mapea posición en grilla a id de vértice del grafo
+    Dictionary<Vector2Int, int> celdaToVertice = new Dictionary<Vector2Int, int>(); 
     int proximoVertice = 0;
 
-    // Mapa visual
+    // Mapa
     public Dictionary<Vector2Int, GameObject> gridCells = new Dictionary<Vector2Int, GameObject>();
     public List<Vector3> pathPositions = new List<Vector3>();
     public List<PlacedTileData> placedTiles = new List<PlacedTileData>();
 
-    // Estado
     public Vector2Int currentPathEnd;
     private int tileCount = 0;
 
     private List<Vector2Int> caminoOptimoDebug = null;
 
-    // Ejemplo: TileExpansion
     public class TileExpansion
     {
         public string tileName;
@@ -42,7 +40,7 @@ public class GridManager : MonoBehaviour
         {
             tileName = name;
             this.pathOffsets = pathOffsets;
-            tileSize = new Vector2Int(5, 5); // Siempre 5x5 en tu ejemplo
+            tileSize = new Vector2Int(5, 5);
         }
     }
 
@@ -84,7 +82,7 @@ public class GridManager : MonoBehaviour
                 Vector2Int pos = new Vector2Int(x, z);
                 Vector3 worldPos = new Vector3(x * cellSize, 0, z * cellSize);
                 gridCells[pos] = Instantiate(cellPrefab, worldPos, Quaternion.identity, tileCore.transform);
-                CrearCelda(pos); // <--- AGREGAR al grafo cada celda base
+                CrearCelda(pos); 
             }
         }
 
@@ -101,7 +99,7 @@ public class GridManager : MonoBehaviour
 
         // Instanciar core y sumarlo como vértice del grafo
         Instantiate(corePrefab, coreWorldPos, Quaternion.identity, tileCore.transform);
-        CrearCelda(corePos); // <-- Vértice del núcleo
+        CrearCelda(corePos); 
 
         pathPositions.Add(coreWorldPos);
         currentPathEnd = corePos;
@@ -128,13 +126,11 @@ public class GridManager : MonoBehaviour
 
             // Agregar vértice y conectar arista en el grafo
             CrearCelda(pathPos);
-            ConectarCeldas(currentPathEnd, pathPos, 1); // Arista entre camino anterior y actual
-
+            ConectarCeldas(currentPathEnd, pathPos, 1); 
             currentPathEnd = pathPos;
         }
     }
 
-    // Crea un vértice/celda en el grafo si no existe
     public void CrearCelda(Vector2Int pos)
     {
         if (!celdaToVertice.ContainsKey(pos))
@@ -145,7 +141,6 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // Crea una arista (bidireccional)
     public void ConectarCeldas(Vector2Int pos1, Vector2Int pos2, int peso = 1)
     {
         if (celdaToVertice.ContainsKey(pos1) && celdaToVertice.ContainsKey(pos2))
@@ -157,13 +152,11 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // Valida que no exista la celda ya en el grafo
     public bool SePuedeExpandir(Vector2Int pos)
     {
         return !celdaToVertice.ContainsKey(pos);
     }
 
-    // Aplicar expansión de un tile en el grafo y en la grilla visual
     public void ApplyTileExpansionAtWorldPosition(TileExpansion tile, Vector3 worldPosition)
     {
         tileCount++;
@@ -195,7 +188,7 @@ public class GridManager : MonoBehaviour
                     gridCells[pos] = Instantiate(cellPrefab, spawnPos, Quaternion.identity, tileParent.transform);
                     //gridCells[pos].AddComponent<CellVisual>();
                 }
-                CrearCelda(pos); // ¡Lo agregás como vértice del grafo!
+                CrearCelda(pos); 
             }
         }
 
@@ -215,14 +208,14 @@ public class GridManager : MonoBehaviour
             //gridCells[pathPos].AddComponent<PathVisual>();
             pathPositions.Add(spawnPos);
 
-            CrearCelda(pathPos); // Cada path es un vértice
+            CrearCelda(pathPos);
             if (i > 0)
             {
-                ConectarCeldas(startPath + rotatedOffsets[i - 1], pathPos, 1); // Conectar con anterior
+                ConectarCeldas(startPath + rotatedOffsets[i - 1], pathPos, 1); 
             }
             else
             {
-                ConectarCeldas(currentPathEnd, pathPos, 1); // Conectar el inicio con la primer celda path
+                ConectarCeldas(currentPathEnd, pathPos, 1); 
             }
             prevPath = pathPos;
         }
@@ -231,7 +224,6 @@ public class GridManager : MonoBehaviour
         placedTiles.Add(new PlacedTileData(tile.tileName, bottomLeft));
     }
 
-    // Obtener dirección del camino
     public Vector2Int GetPathDirection()
     {
         if (pathPositions.Count < 2)
@@ -253,7 +245,7 @@ public class GridManager : MonoBehaviour
         return new Vector2Int(Mathf.RoundToInt(lastWorld.x / cellSize), Mathf.RoundToInt(lastWorld.z / cellSize));
     }
 
-    // Rotar offsets (según tu lógica actual)
+    // Rotar offsets
     public List<Vector2Int> RotateOffsets(Vector2Int[] offsets, Vector2Int dir)
     {
         if (dir == Vector2Int.up) return offsets.ToList();
@@ -263,7 +255,6 @@ public class GridManager : MonoBehaviour
         return offsets.ToList();
     }
 
-    // TileOptions de ejemplo
     public List<TileExpansion> GetTileOptions()
     {
         List<TileExpansion> tiles = new()
@@ -298,7 +289,6 @@ public class GridManager : MonoBehaviour
         return tiles;
     }
 
-    // Expansión random (filtros válidos a gusto)
     public void ApplyRandomValidTileExpansion()
     {
         List<TileExpansion> tileOptions = GetTileOptions();
@@ -322,7 +312,6 @@ public class GridManager : MonoBehaviour
         ApplyTileExpansionAtWorldPosition(selectedTile, worldPosition);
     }
 
-    // Ejemplo de adyacencias, igual que tu función original
     public List<string> GetDisabledTileNamesFromNextAdyacents()
     {
         List<string> disabledTiles = new();
@@ -387,7 +376,6 @@ public class GridManager : MonoBehaviour
         return pathPositions.ToArray();
     }
 
-    // Ejemplo: obtener camino entre dos posiciones usando el grafo
     public List<Vector2Int> ObtenerCamino(Vector2Int inicio, Vector2Int fin)
     {
         if (celdaToVertice.ContainsKey(inicio) && celdaToVertice.ContainsKey(fin))
@@ -407,7 +395,7 @@ public class GridManager : MonoBehaviour
     }
     public Vector3[] ObtenerCaminoOptimoWorld(Vector2Int inicio, Vector2Int fin)
     {
-        var camino = ObtenerCaminoOptimo(inicio, fin); // el método con Dijkstra que ya te pasé
+        var camino = ObtenerCaminoOptimo(inicio, fin); 
         if (camino == null) return null;
         return camino.Select(pos => new Vector3(pos.x * cellSize, 0, pos.y * cellSize)).ToArray();
     }
@@ -422,7 +410,7 @@ public class GridManager : MonoBehaviour
 
         AlgDijkstra.Dijkstra(grafo, vInicio);
 
-        // Buscar la posición del índice destino en Etiqs
+
         int idxDestino = -1;
         for (int i = 0; i < grafo.cantNodos; i++)
         {
@@ -435,7 +423,7 @@ public class GridManager : MonoBehaviour
         if (idxDestino == -1 || AlgDijkstra.nodos == null || AlgDijkstra.nodos.Length <= idxDestino || AlgDijkstra.nodos[idxDestino] == null)
             return null;
 
-        string pathStr = AlgDijkstra.nodos[idxDestino]; // ejemplo: "3,12,25,37"
+        string pathStr = AlgDijkstra.nodos[idxDestino];
         string[] idsStr = pathStr.Split(',');
 
         // Convertir de IDs a Vector2Int
@@ -457,7 +445,7 @@ public class GridManager : MonoBehaviour
     }
     void OnDrawGizmos()
     {
-        // Para debug: dibujar las conexiones del grafo
+        //conexiones del grafo
         if (celdaToVertice != null)
         {
             Gizmos.color = Color.cyan;

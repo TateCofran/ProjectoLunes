@@ -6,40 +6,27 @@ public class GoldManager : MonoBehaviour
     public static GoldManager Instance;
 
     [Header("UI References")]
-    public TMP_Text goldText;             // Oro actual
-    public TMP_Text permanentGoldText;    // Oro permanente
+    public TMP_Text goldText;   
 
     [Header("Initial Values")]
-    public int startingGold = 30;
+    private int currentGold = 100;
 
-    private int currentGold;
-    private int permanentGold;
-
-    void Awake()
+    private void Awake()
     {
-        // Singleton pattern
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject);
         }
         else
         {
             Destroy(gameObject);
-            return;
         }
-
-        // Oro permanente (se guarda en PlayerPrefs)
-        permanentGold = PlayerPrefs.GetInt("PermanentGold", 0);
-
-        // Oro corriente
-        currentGold = startingGold;
-
         UpdateGoldUI();
-        UpdatePermanentGoldUI();
     }
-
-    // Métodos de oro corriente
+    private void Start()
+    {
+        currentGold = 100;
+    }
     public void AddGold(int amount)
     {
         currentGold += amount;
@@ -62,36 +49,14 @@ public class GoldManager : MonoBehaviour
         return currentGold;
     }
 
-    // Métodos de oro permanente
-    public void AddPermanentGold(int amount)
+    public void ResetGold()
     {
-        permanentGold += amount;
-        PlayerPrefs.SetInt("PermanentGold", permanentGold);
-        PlayerPrefs.Save();
-        UpdatePermanentGoldUI();
+        currentGold = 100; 
+        UpdateGoldUI();
     }
-
-    public int GetPermanentGold()
-    {
-        return permanentGold;
-    }
-
-    // UI
     void UpdateGoldUI()
     {
-        if (goldText == null)
-        {
-            Debug.LogError("GoldManager: goldText ES NULO. Revisa el Inspector.");
-            return;
-        }
-
-        Debug.Log($"GoldManager: actualizando texto a {currentGold}");
-        goldText.text = $"gold: {currentGold}";
-    }
-
-    void UpdatePermanentGoldUI()
-    {
-        if (permanentGoldText != null)
-            permanentGoldText.text = $"Oro permanente: {permanentGold}";
+        if (goldText != null)
+            goldText.text = $"Oro: {currentGold}";
     }
 }

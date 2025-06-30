@@ -40,6 +40,7 @@ public class Enemy : MonoBehaviour
 
     private float originalSpeed;
     private Coroutine slowCoroutine;
+    private bool hasHitCore = false;
 
     public void InitializePath(Vector2Int spawnGridPos, Vector2Int coreGridPos, GameObject coreObject, WaveSpawner spawner, GridManager manager)
     {
@@ -51,12 +52,11 @@ public class Enemy : MonoBehaviour
         gridManager = manager;
         currentHealth = maxHealth;
 
-        // --- Pedir camino óptimo ---
         pathPositions = gridManager.ObtenerCaminoOptimoWorld(spawnGridPos, coreGridPos);
         Debug.Log($"[ENEMY] pathPositions: {string.Join(" -> ", pathPositions.Select(p => p.ToString()))}");
 
         mainPathPositions = pathPositions;
-        currentPathIndex = 1; // Empieza en el primer segmento (del 0 al 1)
+        currentPathIndex = 1;
 
         if (pathPositions == null || pathPositions.Length == 0)
         {
@@ -82,7 +82,6 @@ public class Enemy : MonoBehaviour
             healthBarFill.fillAmount = Mathf.Lerp(healthBarFill.fillAmount, targetFill, Time.deltaTime * 8f);
         }
 
-        //Debug.Log($"[ENEMY MOVE] {name} en {transform.position}, yendo a [{currentPathIndex}] {pathPositions[currentPathIndex]}");
         Move();
     }
 
@@ -98,6 +97,8 @@ public class Enemy : MonoBehaviour
 
         if (currentHealth <= 0)
         {
+            int goldPerKill = GameStats.GoldPerKill;
+            GoldManager.Instance.AddGold(goldPerKill);
             Die();
         }
     }
@@ -129,7 +130,6 @@ public class Enemy : MonoBehaviour
             AdvanceToNextSegment();
         }
     }
-
 
     private void AdvanceToNextSegment()
     {
@@ -174,12 +174,14 @@ public class Enemy : MonoBehaviour
     {
         return currentPathIndex >= pathPositions.Length;
     }
+
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Core"))
+        if (other.CompareTag("Core") && !hasHitCore)
         {
+            hasHitCore = true; 
             Debug.Log("Enemy collided with Core. Triggering damage and death.");
-            core.GetComponent<Core>().TakeDamage(1);
+            other.GetComponent<Core>().TakeDamage(1);
             Die();
         }
     }
