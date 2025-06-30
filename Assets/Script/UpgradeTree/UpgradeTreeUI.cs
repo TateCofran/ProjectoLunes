@@ -89,7 +89,7 @@ public class UpgradeTreeUI : MonoBehaviour
     public void UpdateGemUI()
     {
         int totalGems = GemManager.Instance.GetGemsPermanent();
-        totalGemsText.text = "Gemas: " + totalGems;
+        totalGemsText.text = " " + totalGems;
     }
 
     void UpdateUI()
