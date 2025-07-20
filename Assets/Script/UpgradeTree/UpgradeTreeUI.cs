@@ -4,31 +4,14 @@ using UnityEngine.UI;
 
 public class UpgradeTreeUI : MonoBehaviour
 {
-    [Header("Oro al matar")]
-    public Button btnOroAlMatar;
-    public TMP_Text txtOroAlMatarNombre;
-    public TMP_Text txtOroAlMatarDescCost;
-    public TMP_Text txtOroAlMatarReq;
-
-    [Header("Más daño")]
-    public Button btnMasDano;
-    public TMP_Text txtMasDanoNombre;
-    public TMP_Text txtMasDanoDescCost;
-    public TMP_Text txtMasDanoReq;
-
-    [Header("Más alcance")]
-    public Button btnMasAlcance;
-    public TMP_Text txtMasAlcanceNombre;
-    public TMP_Text txtMasAlcanceDescCost;
-    public TMP_Text txtMasAlcanceReq;
-
-    [Header("Mejora global")]
-    public Button btnMejoraGlobal;
-    public TMP_Text txtMejoraGlobalNombre;
-    public TMP_Text txtMejoraGlobalDescCost;
-    public TMP_Text txtMejoraGlobalReq;
+    [Header("Upgrade Buttons & Texts")]
+    public Button[] upgradeButtons;          
+    public TMP_Text[] upgradeNameTexts;
+    public TMP_Text[] upgradeDescCostTexts;
+    public TMP_Text[] upgradeReqTexts;
 
     private UpgradeTree tree;
+    private int[] upgradeIds = { 10, 5, 15, 12 }; 
 
     [Header("Gems")]
     public TMP_Text totalGemsText;
@@ -37,38 +20,44 @@ public class UpgradeTreeUI : MonoBehaviour
     {
         tree = new UpgradeTree();
         UpdateGemUI();
-        LoadUpgrades(tree.Root);
 
-        txtOroAlMatarNombre.text = tree.Root.Name;
-        txtOroAlMatarDescCost.text = tree.Root.Description + "\nCosto: " + tree.Root.Cost;
+        for (int i = 0; i < upgradeIds.Length; i++)
+        {
+            var node = tree.Search(upgradeIds[i]);
+            if (node == null) continue;
 
-        txtMasDanoNombre.text = tree.Root.Left.Name;
-        txtMasDanoDescCost.text = tree.Root.Left.Description + "\nCosto: " + tree.Root.Left.Cost;
+            upgradeNameTexts[i].text = node.Name;
+            upgradeDescCostTexts[i].text = node.Description + "\nCosto: " + node.Cost;
 
-        txtMasAlcanceNombre.text = tree.Root.Right.Name;
-        txtMasAlcanceDescCost.text = tree.Root.Right.Description + "\nCosto: " + tree.Root.Right.Cost;
+            node.Unlocked = PlayerPrefs.GetInt("Upgrade_" + node.Id, 0) == 1;
 
-        txtMejoraGlobalNombre.text = tree.Root.Left.Right.Name;
-        txtMejoraGlobalDescCost.text = tree.Root.Left.Right.Description + "\nCosto: " + tree.Root.Left.Right.Cost;
-
-        btnOroAlMatar.onClick.AddListener(() => TryUnlock(tree.Root));
-        btnMasDano.onClick.AddListener(() => TryUnlock(tree.Root.Left));
-        btnMasAlcance.onClick.AddListener(() => TryUnlock(tree.Root.Right));
-        btnMejoraGlobal.onClick.AddListener(() => TryUnlock(tree.Root.Left.Right));
+            int idx = i; 
+            upgradeButtons[i].onClick.AddListener(() => TryUnlock(node.Id));
+        }
 
         ApplyAllUpgradeEffects();
         UpdateUI();
     }
 
-    void TryUnlock(UpgradeNode node)
+    void TryUnlock(int id)
     {
-        if (node.Unlocked)
+        var node = tree.Search(id);
+        if (node == null || node.Unlocked)
             return;
 
-        string requisito = tree.GetMissingRequirement(node);
+        string requisito = tree.GetMissingRequirement(id);
         if (!string.IsNullOrEmpty(requisito))
         {
             Debug.Log("Te falta: " + requisito);
+            return;
+        }
+
+        var parent = tree.GetParent(id);
+        bool puedeDesbloquear = node == tree.Root || (parent != null && parent.Unlocked);
+
+        if (!puedeDesbloquear)
+        {
+            Debug.Log("No se cumplen los requisitos para desbloquear.");
             return;
         }
 
@@ -78,13 +67,14 @@ public class UpgradeTreeUI : MonoBehaviour
             return;
         }
 
-        tree.Unlock(node);
-        SaveUpgrade(node);
+        tree.Unlock(id);
+        PlayerPrefs.SetInt("Upgrade_" + node.Id, 1);
+        PlayerPrefs.Save();
 
-        ApplyAllUpgradeEffects(); 
-
+        ApplyAllUpgradeEffects();
         UpdateUI();
     }
+
 
     public void UpdateGemUI()
     {
@@ -94,64 +84,65 @@ public class UpgradeTreeUI : MonoBehaviour
 
     void UpdateUI()
     {
-        txtOroAlMatarReq.text = tree.GetMissingRequirement(tree.Root);
-        txtMasDanoReq.text = tree.GetMissingRequirement(tree.Root.Left);
-        txtMasAlcanceReq.text = tree.GetMissingRequirement(tree.Root.Right);
-        txtMejoraGlobalReq.text = tree.GetMissingRequirement(tree.Root.Left.Right);
+        for (int i = 0; i < upgradeIds.Length; i++)
+        {
+            var node = tree.Search(upgradeIds[i]);
+            if (node == null) continue;
 
-        btnOroAlMatar.interactable = !tree.Root.Unlocked;
-        btnMasDano.interactable = tree.Root.Unlocked && !tree.Root.Left.Unlocked;
-        btnMasAlcance.interactable = tree.Root.Unlocked && !tree.Root.Right.Unlocked;
-        btnMejoraGlobal.interactable = tree.Root.Left.Unlocked && tree.Root.Right.Unlocked && !tree.Root.Left.Right.Unlocked;
+            bool puedeDesbloquearse = false;
+            if (node == tree.Root)
+                puedeDesbloquearse = !node.Unlocked;
+            else
+            {
+                var parent = tree.GetParent(node.Id);
+                puedeDesbloquearse = parent != null && parent.Unlocked && !node.Unlocked;
+            }
 
-        btnOroAlMatar.image.color = tree.Root.Unlocked ? Color.green : Color.white;
-        btnMasDano.image.color = tree.Root.Left.Unlocked ? Color.green : Color.white;
-        btnMasAlcance.image.color = tree.Root.Right.Unlocked ? Color.green : Color.white;
-        btnMejoraGlobal.image.color = tree.Root.Left.Right.Unlocked ? Color.green : Color.white;
-    }
-    public void SaveUpgrade(UpgradeNode node)
-    {
-        PlayerPrefs.SetInt("Upgrade_" + node.Name, node.Unlocked ? 1 : 0);
-        PlayerPrefs.Save();
+            upgradeButtons[i].interactable = puedeDesbloquearse;
+            upgradeButtons[i].image.color = node.Unlocked ? Color.green : Color.white;
+        }
     }
 
-    public void LoadUpgrades(UpgradeNode node)
-    {
-        if (node == null) return;
-        node.Unlocked = PlayerPrefs.GetInt("Upgrade_" + node.Name, 0) == 1;
-        LoadUpgrades(node.Left);
-        LoadUpgrades(node.Right);
-    }
+
     void ApplyAllUpgradeEffects()
     {
         GameStats.GoldPerKill = 0;
         GameStats.TurretDamageMultiplier = 1f;
         GameStats.TurretRangeMultiplier = 1f;
 
-        if (tree.Root.Unlocked)
-            GameStats.GoldPerKill = 1;
-        if (tree.Root.Left.Unlocked)
-            GameStats.TurretDamageMultiplier += 0.10f;
-        if (tree.Root.Right.Unlocked)
-            GameStats.TurretRangeMultiplier += 0.10f;
-        if (tree.Root.Left.Right.Unlocked)
+        foreach (var node in tree.InOrderTraversal())
         {
-            GameStats.TurretDamageMultiplier += 0.05f;
-            GameStats.TurretRangeMultiplier += 0.05f;
+            if (node.Unlocked)
+            {
+                switch (node.Id)
+                {
+                    case 10: GameStats.GoldPerKill = 1; break;
+                    case 5: GameStats.TurretDamageMultiplier += 0.10f; break;
+                    case 15: GameStats.TurretRangeMultiplier += 0.10f; break;
+                    case 12:
+                        GameStats.TurretDamageMultiplier += 0.05f;
+                        GameStats.TurretRangeMultiplier += 0.05f;
+                        break;
+                }
+            }
         }
 
-        // ACTUALIZAR todas las torretas en escena
         foreach (Turret turret in FindObjectsOfType<Turret>())
         {
             if (turret.turretData != null)
                 turret.ApplyData(turret.turretData);
         }
     }
+
     [ContextMenu("Resetear árbol de mejoras")]
     public void ResetTreeFromInspector()
     {
+        foreach (var id in upgradeIds)
+            PlayerPrefs.SetInt("Upgrade_" + id, 0);
+
         tree = new UpgradeTree();
         UpdateUI();
         Debug.Log("Árbol de mejoras reseteado.");
     }
 }
+
