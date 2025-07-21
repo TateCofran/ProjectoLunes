@@ -36,14 +36,13 @@ public class DirectEnemy : MonoBehaviour
         gridManager = manager;
         currentHealth = maxHealth;
 
-        // --- ATENCIÓN: SIEMPRE CALCULA EL CAMINO MÁS CORTO SOBRE EL GRAFO, IGNORANDO EL VISUAL ---
-        // Esto NO afecta al SlowEnemy ni al grafo, solo busca el óptimo con Dijkstra
+        // Enemy Dijkstra - camino optimo
 
         pathPositions = gridManager.ObtenerCaminoOptimoWorld(spawnGridPos, coreGridPos);
 
         if (pathPositions == null || pathPositions.Length == 0)
         {
-            Debug.LogError("[DirectEnemy] No se pudo generar ruta óptima (Dijkstra).");
+            Debug.LogError("[DirectEnemy] No se pudo generar ruta Ã³ptima (Dijkstra).");
             return;
         }
 
