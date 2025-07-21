@@ -74,7 +74,7 @@ public class GridManager : MonoBehaviour
         GameObject tileCore = new GameObject("Tile-Core");
         tileCore.transform.parent = this.transform;
 
-        // Grilla base (tiles de celda)
+      
         for (int x = 0; x < width; x++)
         {
             for (int z = 0; z < height; z++)
@@ -86,29 +86,29 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // Posición del core: centro en X, parte inferior en Z
+    
         Vector2Int corePos = new Vector2Int(width / 2, 0);
         Vector3 coreWorldPos = new Vector3(corePos.x * cellSize, 0, corePos.y * cellSize);
 
-        // Eliminar celda del core (si está)
+      
         if (gridCells.ContainsKey(corePos))
         {
             Destroy(gridCells[corePos]);
             gridCells.Remove(corePos);
         }
 
-        // Instanciar core y sumarlo como vértice del grafo
+       
         Instantiate(corePrefab, coreWorldPos, Quaternion.identity, tileCore.transform);
         CrearCelda(corePos); 
 
         pathPositions.Add(coreWorldPos);
         currentPathEnd = corePos;
 
-        // Guardar la posición de tile inicial (tile de 5x5)
+       
         Vector2Int initialBottomLeft = new Vector2Int(corePos.x - 2, 0);
         placedTiles.Add(new PlacedTileData("Inicial", initialBottomLeft));
 
-        // Generar camino hacia arriba hasta el borde e integrarlo al grafo
+       
         for (int z = 1; z < height; z++)
         {
             Vector2Int pathPos = new Vector2Int(corePos.x, z);
@@ -173,7 +173,7 @@ public class GridManager : MonoBehaviour
     Vector2Int bottomLeft = currentPathEnd + tileOffset;
     Vector2Int startPath = currentPathEnd + pathDirection;
 
-    // Crear celdas del tile 5x5
+ 
     for (int x = 0; x < tile.tileSize.x; x++)
     {
         for (int y = 0; y < tile.tileSize.y; y++)
@@ -189,7 +189,7 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // Crear el camino principal
+  
     for (int i = 0; i < rotatedOffsets.Count; i++)
     {
         Vector2Int pathPos = startPath + rotatedOffsets[i];
@@ -214,10 +214,10 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // NUEVO: Manejar el tile circular
+  
     if (tile.tileName == "Circular-Redoma")
     {
-        Debug.Log("[GridManager] Creando tile circular tipo redoma");
+       
         CrearRedomaCircular(startPath, rotatedOffsets, pathDirection, tileParent);
     }
     else
@@ -229,45 +229,36 @@ public class GridManager : MonoBehaviour
 }
  private void CrearRedomaCircular(Vector2Int startPath, List<Vector2Int> mainOffsets, Vector2Int mainDirection, GameObject tileParent)
 {
-    Debug.Log($"[GridManager] Creando redoma circular en dirección: {mainDirection}");
     
-    // Puntos clave del tile
-    Vector2Int puntoEntrada = startPath + mainOffsets[1];     // donde entra
-    Vector2Int puntoDivision = startPath + mainOffsets[2];    // donde se divide el camino
-    Vector2Int puntoReunion = startPath + mainOffsets[3];     // donde se reúne
-    Vector2Int puntoSalida = startPath + mainOffsets[4];      // donde sale
+    Vector2Int puntoEntrada = startPath + mainOffsets[1];     
+    Vector2Int puntoDivision = startPath + mainOffsets[2];   
+    Vector2Int puntoReunion = startPath + mainOffsets[3];    
+    Vector2Int puntoSalida = startPath + mainOffsets[4];
     
     Debug.Log($"[GridManager] Puntos: Entrada={puntoEntrada}, División={puntoDivision}, Reunión={puntoReunion}, Salida={puntoSalida}");
     
-    // 1. CREAR ATAJO CENTRAL (peso 1 - óptimo para Dijkstra)
+    
     CrearAtajoCentral(puntoDivision, puntoReunion, tileParent);
     
-    // 2. CREAR CAMINO CIRCULAR (peso 3 - menos eficiente, para BFS)
     CrearCaminoCircularRedoma(puntoDivision, puntoReunion, mainDirection, tileParent);
     
-    // 3. Actualizar el punto final
+
     currentPathEnd = puntoSalida;
     
-    Debug.Log($"[GridManager] Redoma circular creada exitosamente. Nuevo endpoint: {currentPathEnd}");
+  
 }
 
-// Crear el atajo central directo
+
 private void CrearAtajoCentral(Vector2Int desde, Vector2Int hasta, GameObject parent)
 {
-    Debug.Log($"[GridManager] Creando atajo central desde {desde} hasta {hasta}");
-    
-    // Conexión directa con peso 1 (más eficiente para Dijkstra)
     ConectarCeldas(desde, hasta, 1);
-    
-    Debug.Log($"[GridManager] Atajo central creado con peso 1");
 }
 
-// Crear el camino circular (la "redoma")
+
 private void CrearCaminoCircularRedoma(Vector2Int desde, Vector2Int hasta, Vector2Int mainDirection, GameObject parent)
 {
     Debug.Log($"[GridManager] Creando camino circular tipo redoma desde {desde} hasta {hasta}");
     
-    // Determinar direcciones laterales según la dirección principal
     Vector2Int direccionIzquierda, direccionDerecha;
     
     if (mainDirection == Vector2Int.up)
@@ -287,52 +278,50 @@ private void CrearCaminoCircularRedoma(Vector2Int desde, Vector2Int hasta, Vecto
     }
     else
     {
-        // Fallback
+        
         direccionIzquierda = Vector2Int.left;
         direccionDerecha = Vector2Int.right;
     }
     
-    // LADO IZQUIERDO de la redoma
+   
     CrearLadoRedoma(desde, hasta, direccionIzquierda, mainDirection, parent, "izquierdo");
     
-    // LADO DERECHO de la redoma (solo si no va hacia abajo)
+   
     if (direccionDerecha != Vector2Int.down || mainDirection == Vector2Int.up)
     {
         CrearLadoRedoma(desde, hasta, direccionDerecha, mainDirection, parent, "derecho");
     }
 }
 
-// Crear un lado de la redoma (izquierdo o derecho)
+
 private void CrearLadoRedoma(Vector2Int desde, Vector2Int hasta, Vector2Int direccionLateral, Vector2Int direccionPrincipal, GameObject parent, string lado)
 {
-    Debug.Log($"[GridManager] Creando lado {lado} de la redoma");
-    
-    // Calcular puntos del arco
-    Vector2Int punto1 = desde + direccionLateral;                                    // primer punto lateral
-    Vector2Int punto2 = desde + direccionLateral * 2;                               // punto más alejado lateralmente
-    Vector2Int punto3 = punto2 + direccionPrincipal * (hasta.y - desde.y);         // avanzar hacia adelante
-    Vector2Int punto4 = punto3 - direccionLateral;                                  // volver hacia el centro
-    Vector2Int punto5 = punto4 - direccionLateral;                                  // punto antes de la reunión
+   
+    Vector2Int punto1 = desde + direccionLateral;                                   
+    Vector2Int punto2 = desde + direccionLateral * 2;                              
+    Vector2Int punto3 = punto2 + direccionPrincipal * (hasta.y - desde.y);         
+    Vector2Int punto4 = punto3 - direccionLateral;                                
+    Vector2Int punto5 = punto4 - direccionLateral;                                 
     
     List<Vector2Int> puntosArco = new List<Vector2Int> { desde, punto1, punto2, punto3, punto4, punto5, hasta };
     
-    // Crear y conectar cada punto del arco
+  
     Vector2Int puntoAnterior = desde;
     for (int i = 1; i < puntosArco.Count; i++)
     {
         Vector2Int puntoActual = puntosArco[i];
         
-        // Solo crear si está dentro del mapa y no va hacia abajo
+      
         if (!EstaFueraDelMapa(puntoActual) && puntoActual.y >= desde.y)
         {
-            // Solo crear celda si no es el punto de reunión (ya existe)
+          
             if (puntoActual != hasta && puntoActual != desde)
             {
                 Vector3 worldPos = new Vector3(puntoActual.x * cellSize, 0, puntoActual.y * cellSize);
                 CrearCeldaDeCamino(puntoActual, worldPos, parent);
             }
             
-            // Conectar con peso 3 (menos eficiente que el atajo central)
+          
             ConectarCeldas(puntoAnterior, puntoActual, 3);
             puntoAnterior = puntoActual;
         }
@@ -343,28 +332,28 @@ private void CrearLadoRedoma(Vector2Int desde, Vector2Int hasta, Vector2Int dire
         }
     }
     
-    Debug.Log($"[GridManager] Lado {lado} de la redoma creado con peso 3");
+  
 }
 
-// Función auxiliar para crear celdas de camino
+
 private void CrearCeldaDeCamino(Vector2Int pos, Vector3 worldPos, GameObject parent)
 {
-    // Destruir celda existente si la hay
+ 
     if (gridCells.ContainsKey(pos))
     {
         Destroy(gridCells[pos]);
         gridCells.Remove(pos);
     }
     
-    // Crear nueva celda de camino
+
     gridCells[pos] = Instantiate(pathPrefab, worldPos, Quaternion.identity, parent.transform);
     pathPositions.Add(worldPos);
     
-    // Agregar al grafo
+ 
     CrearCelda(pos);
 }
 
-// Función auxiliar para verificar límites
+
 private bool EstaFueraDelMapa(Vector2Int pos)
 {
     return pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height;
@@ -378,7 +367,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
         Vector2Int pos = kvp.Key;
         int vertice = kvp.Value;
         
-        // Contar conexiones
+     
         int conexiones = 0;
         for (int i = 0; i < grafo.cantNodos; i++)
         {
@@ -386,7 +375,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
                 conexiones++;
         }
         
-        // Si solo tiene 1 conexión y no es el core, es un punto final
+       
         Vector2Int corePos = new Vector2Int(width / 2, 0);
         if (conexiones == 1 && pos != corePos)
         {
@@ -419,7 +408,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
         return new Vector2Int(Mathf.RoundToInt(lastWorld.x / cellSize), Mathf.RoundToInt(lastWorld.z / cellSize));
     }
 
-    // Rotar offsets
+
     public List<Vector2Int> RotateOffsets(Vector2Int[] offsets, Vector2Int dir)
     {
         if (dir == Vector2Int.up) return offsets.ToList();
@@ -459,14 +448,14 @@ public List<Vector2Int> ObtenerPuntosFinales()
                 Vector2Int.up * 2 + Vector2Int.left * 2
             }),
 
-            // NUEVO: Tile Circular con atajo central (reemplaza T-Bifurcacion)
+       
             new TileExpansion("Circular-Redoma", new[]
             {
-                new Vector2Int(0, 0),  // entrada
-                Vector2Int.up,         // primer paso
-                Vector2Int.up * 2,     // punto de división
-                Vector2Int.up * 3,     // punto de reunión (atajo central)
-                Vector2Int.up * 4      // salida
+                new Vector2Int(0, 0),  
+                Vector2Int.up,        
+                Vector2Int.up * 2,    
+                Vector2Int.up * 3,     
+                Vector2Int.up * 4     
             })
         };
         return tiles;
@@ -483,23 +472,21 @@ public List<Vector2Int> ObtenerPuntosFinales()
 
         if (validTiles == null || validTiles.Count == 0)
         {
-            Debug.LogWarning("No hay tiles válidos para expandir en esta dirección.");
             return;
         }
 
         TileExpansion selectedTile;
 
-        // CAMBIO: Forzar redoma circular cada 2 oleadas (oleadas 2, 4, 6, etc)
+       
         bool shouldForceCircular = (waveNumber > 1 && waveNumber % 2 == 0);
 
         if (shouldForceCircular && validTiles.Any(t => t.tileName == "Circular-Redoma"))
         {
             selectedTile = validTiles.First(t => t.tileName == "Circular-Redoma");
-            Debug.Log($"[GridManager] FORZANDO REDOMA CIRCULAR en oleada {waveNumber}");
         }
         else
         {
-            // Excluir la redoma circular de la selección aleatoria en oleadas impares
+          
             List<TileExpansion> tilesWithoutCircular = validTiles
                 .Where(t => t.tileName != "Circular-Redoma")
                 .ToList();
@@ -514,8 +501,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
                 selectedTile = validTiles[0];
             }
         }
-
-        Debug.Log($"[GridManager] Tile seleccionado: {selectedTile.tileName} para oleada {waveNumber}");
+        
 
         Vector3 worldPosition = new Vector3(currentPathEnd.x * cellSize, 0, currentPathEnd.y * cellSize);
         ApplyTileExpansionAtWorldPosition(selectedTile, worldPosition);
@@ -543,7 +529,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
         Vector2Int.up * 5,
         Vector2Int.left * 5,
         Vector2Int.right * 5
-        // Removido Vector2Int.down para evitar ir hacia abajo
+      
     };
 
     HashSet<Vector2Int> allTilePositions = new(placedTiles.Select(p => p.basePosition));
@@ -575,7 +561,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
             disabledTiles.Add(sugerido);
     }
 
-    // La redoma circular siempre está disponible (no se deshabilita por adyacencia)
+    
     disabledTiles.Remove("Circular-Redoma");
     
     return disabledTiles;
@@ -617,7 +603,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
         int vInicio = celdaToVertice[inicio];
         int vFin = celdaToVertice[fin];
 
-        Debug.Log($"[GridManager] DIJKSTRA (DirectEnemy): Desde vértice {vInicio} ({inicio}) a {vFin} ({fin})");
+        
 
         // Ejecutar Dijkstra
         AlgDijkstra.Dijkstra(grafo, vInicio);
@@ -638,9 +624,9 @@ public List<Vector2Int> ObtenerPuntosFinales()
         string pathStr = AlgDijkstra.nodos[idxDestino];
         string[] idsStr = pathStr.Split(',');
 
-        Debug.Log($"[GridManager] DIJKSTRA resultado: {pathStr}");
+      
 
-        // Convertir de IDs a Vector2Int
+        
         List<Vector2Int> camino = new List<Vector2Int>();
         foreach (var idStr in idsStr)
         {
@@ -650,18 +636,13 @@ public List<Vector2Int> ObtenerPuntosFinales()
                 if (!pos.Equals(default(Vector2Int))) camino.Add(pos);
             }
         }
-    
-        Debug.Log($"[GridManager] DIJKSTRA camino convertido: {string.Join(" -> ", camino)}");
-        Debug.Log($"[GridManager] DIJKSTRA longitud del camino: {camino.Count} puntos (ruta óptima)");
+        
         return camino;
     }
-    public void DebugCaminoOptimo(Vector2Int inicio, Vector2Int fin)
-    {
-       // caminoOptimoDebug = ObtenerCaminoOptimo(inicio, fin);
-    }
+   
     void OnDrawGizmos()
     {
-        //conexiones del grafo
+        
         if (celdaToVertice != null)
         {
             Gizmos.color = Color.cyan;
@@ -685,15 +666,15 @@ public List<Vector2Int> ObtenerPuntosFinales()
 
 
 
-    // Devuelve una lista de Vector2Int con todas las celdas ocupadas por torretas.
+  
     public List<Vector2Int> ObtenerCeldasConTorretas()
     {
         List<Vector2Int> bloqueadas = new List<Vector2Int>();
         foreach (var par in gridCells)
         {
             var cell = par.Value;
-            // Cambia este if según tu lógica para detectar una torreta en esa celda
-            if (cell.GetComponent<Turret>() != null)  // o cualquier lógica que uses
+           
+            if (cell.GetComponent<Turret>() != null)  
                 bloqueadas.Add(par.Key);
         }
         return bloqueadas;
@@ -701,28 +682,22 @@ public List<Vector2Int> ObtenerPuntosFinales()
 
 public Vector3[] ObtenerCaminoNormalWorld(Vector2Int inicio, Vector2Int fin)
 {
-    Debug.Log($"[GridManager] Enemy Normal: Calculando camino BFS desde {inicio} hacia {fin}");
+    
     
     var camino = ObtenerCaminoBFS(inicio, fin);
     if (camino == null || camino.Count == 0)
     {
-        Debug.LogError($"[GridManager] Enemy Normal: No se pudo encontrar camino BFS desde {inicio} a {fin}");
-        
-        // Fallback a Dijkstra si BFS falla
-        Debug.LogWarning($"[GridManager] Enemy Normal: Usando Dijkstra como fallback");
-       // camino = ObtenerCaminoOptimo(inicio, fin);
-        
         if (camino == null)
         {
             return null;
         }
     }
     
-    Debug.Log($"[GridManager] Enemy Normal: Camino BFS encontrado con {camino.Count} puntos");
+ 
     return camino.Select(pos => new Vector3(pos.x * cellSize, 0, pos.y * cellSize)).ToArray();
 }
 
-// BFS que evita rutas de peso 1 (atajos) para simular comportamiento menos inteligente
+
 private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
 {
     if (!celdaToVertice.ContainsKey(inicio) || !celdaToVertice.ContainsKey(fin))
@@ -731,7 +706,7 @@ private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
     int vInicio = celdaToVertice[inicio];
     int vFin = celdaToVertice[fin];
 
-    Debug.Log($"[GridManager] BFS: Desde vértice {vInicio} ({inicio}) a {vFin} ({fin})");
+  
 
     var visitados = new HashSet<int>();
     var anterior = new Dictionary<int, int>();
@@ -745,7 +720,7 @@ private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
         int actual = cola.Dequeue();
         if (actual == vFin) break;
 
-        // Obtener todas las conexiones válidas
+       
         List<(int vertice, int peso)> conexiones = new List<(int, int)>();
         
         for (int i = 0; i < grafo.cantNodos; i++)
@@ -757,10 +732,10 @@ private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
             }
         }
 
-        // CLAVE: Ordenar conexiones poniendo los pesos mayores primero (evitar atajos)
+       
         conexiones.Sort((a, b) => b.peso.CompareTo(a.peso));
 
-        // Procesar las conexiones (las de peso mayor se procesarán primero)
+     
         foreach (var (vecino, peso) in conexiones)
         {
             if (!visitados.Contains(vecino))
@@ -769,17 +744,17 @@ private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
                 anterior[vecino] = actual;
                 cola.Enqueue(vecino);
                 
-                // Debug para ver qué caminos elige BFS
+               
                 Vector2Int posVecino = celdaToVertice.FirstOrDefault(x => x.Value == vecino).Key;
-                Debug.Log($"[BFS] Eligiendo conexión con peso {peso} hacia {posVecino}");
+               
             }
         }
     }
 
-    // Reconstruir camino
+
     if (!visitados.Contains(vFin))
     {
-        Debug.LogWarning($"[GridManager] BFS: No se encontró camino de {inicio} a {fin}");
+        
         return null;
     }
 
@@ -793,7 +768,7 @@ private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
     caminoVertices.Add(vInicio);
     caminoVertices.Reverse();
 
-    // Convertir a Vector2Int
+   
     List<Vector2Int> camino = new List<Vector2Int>();
     foreach (int vertice in caminoVertices)
     {
@@ -803,14 +778,12 @@ private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
             camino.Add(kvp.Key);
         }
     }
-
-    Debug.Log($"[GridManager] BFS resultado: {string.Join(" -> ", camino)}");
-    Debug.Log($"[GridManager] BFS longitud del camino: {camino.Count} puntos (vs Dijkstra que sería más corto)");
+    
     
     return camino;
 }
 
-// Función auxiliar mejorada para estimar el peso de una arista
+
 private int ObtenerPesoAristaEstimado(int desde, int hacia)
 {
     try
@@ -818,40 +791,40 @@ private int ObtenerPesoAristaEstimado(int desde, int hacia)
         Vector2Int posDesde = celdaToVertice.FirstOrDefault(x => x.Value == desde).Key;
         Vector2Int posHacia = celdaToVertice.FirstOrDefault(x => x.Value == hacia).Key;
         
-        // Estimar peso basado en la distancia y contexto
+      
         float distancia = Vector2Int.Distance(posDesde, posHacia);
         
-        // Si están muy cerca (adyacentes), probablemente es parte del camino principal (peso 1)
+       
         if (distancia <= 1.1f)
         {
-            // Verificar si es un atajo central mirando si está cerca del core o en línea recta
+            
             Vector2Int corePos = new Vector2Int(width / 2, 0);
             Vector2Int direccion = posHacia - posDesde;
             
-            // Si la conexión es vertical hacia el core, probablemente es un atajo
+           
             if (Mathf.Abs(direccion.x) == 0 && direccion.y != 0)
             {
-                return 1; // Atajo central
+                return 1; 
             }
             else
             {
-                return 2; // Camino normal
+                return 2; 
             }
         }
-        // Si están más lejos, probablemente es parte del camino circular (peso 3)
+        
         else
         {
-            return 3; // Camino circular largo
+            return 3; 
         }
     }
     catch
     {
-        return 2; // Peso por defecto intermedio
+        return 2; 
     }
 }
     public Vector3[] ObtenerCaminoEvitarTorretas(Vector2Int inicio, Vector2Int fin, List<Vector2Int> celdasBloqueadas)
     {
-        // BFS modificado que saltea los nodos bloqueados
+       
         if (!celdaToVertice.ContainsKey(inicio) || !celdaToVertice.ContainsKey(fin))
             return null;
 
@@ -864,7 +837,7 @@ private int ObtenerPesoAristaEstimado(int desde, int hacia)
         visitados.Add(vInicio);
         cola.Enqueue(vInicio);
 
-        // Precalcular los vértices bloqueados
+     
         var verticesBloqueados = new HashSet<int>(
             celdasBloqueadas.Where(c => celdaToVertice.ContainsKey(c)).Select(c => celdaToVertice[c])
         );
@@ -885,7 +858,7 @@ private int ObtenerPesoAristaEstimado(int desde, int hacia)
             }
         }
 
-        // Reconstruir el camino
+      
         if (!visitados.Contains(vFin))
             return null;
 
@@ -899,7 +872,7 @@ private int ObtenerPesoAristaEstimado(int desde, int hacia)
         camino.Add(vInicio);
         camino.Reverse();
 
-        // Convertir a posiciones en el mundo
+     
         var path = camino.Select(id => celdaToVertice.First(x => x.Value == id).Key)
                          .Select(pos => new Vector3(pos.x * cellSize, 0, pos.y * cellSize))
                          .ToArray();

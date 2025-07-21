@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4416475176374936327
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 706959927718728779}
+  - component: {fileID: 7817836212511850126}
+  m_Layer: 0
+  m_Name: HotKeys
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &706959927718728779
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416475176374936327}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.037870407, y: -0.10738754, z: 0.037867546}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7817836212511850126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4416475176374936327}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab3b22c5018eaa043bd922b3798c93a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  downLeftPrefab: {fileID: 4692433215055784184, guid: 9373f9c6ee74347409fe931ccf5c612e, type: 3}
+  downRightPrefab: {fileID: 6533257362048139825, guid: 823468dcda4c974468762e0668810a8a, type: 3}
+  downStraightPrefab: {fileID: 250904062568464678, guid: a8218938aa3a26c41bbd5a2856742482, type: 3}
+  leftLeftTurnPrefab: {fileID: 539643973080728649, guid: a96bd8fd197e4a1468d082c772d8bd49, type: 3}
+  leftRightTurnPrefab: {fileID: 6216303596133857756, guid: 09aecc5b438d5d240bf0c327d8802e15, type: 3}
+  leftStraightPrefab: {fileID: 7085455798220249094, guid: ea5c202c25642704dbfa704806bf54ac, type: 3}
+  rightLeftTurnPrefab: {fileID: 8751548775845677321, guid: 35fc8ed8bf50c7d48b4440c4b91fdd25, type: 3}
+  rightRightTurnPrefab: {fileID: 5209951386864229474, guid: 886a1aab5d27d6144971693f1f2c0545, type: 3}
+  rightStraightPrefab: {fileID: 1226326209277124509, guid: 89ab0536b5b4792418103e619ac1d8af, type: 3}
+  upLeftTurnPrefab: {fileID: 5427618941460777908, guid: 2ec5a212bb73dbe47a2f8cce26179c3e, type: 3}
+  upRightTurnPrefab: {fileID: 5204112867134959251, guid: e25588da94927934eaefe763cdda3f23, type: 3}
+  upStraightPrefab: {fileID: 5194990190796805743, guid: 5cb1f0d0b1915dc42acf698b57c5c6cf, type: 3}
+  extensionLength: 3
+  enableAutoBuilding: 1
+  integrateWithGridManager: 1

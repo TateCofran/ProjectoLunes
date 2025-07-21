@@ -16,7 +16,7 @@ public class WaveSpawner : MonoBehaviour
 
     [Header("Hotkey Controls")]
     public KeyCode nextWaveHotkey = KeyCode.Space;
-    public KeyCode alternativeHotkey = KeyCode.Return; // Enter
+    public KeyCode alternativeHotkey = KeyCode.Return; 
     public bool enableHotkeys = true;
     public GridManager gridManager;
     public GameObject core;
@@ -60,12 +60,11 @@ public class WaveSpawner : MonoBehaviour
 
     void Update()
     {
-        // Código existente de Update...
+     
         if (!waitingForNextWave && !gridIsExpanding && waveInProgress && currentWave <= maxWaves)
         {
             if (enemiesAlive <= 0)
             {
-                Debug.Log($"Oleada {currentWave} completada");
                 EnemyPool.Instance.LogPoolStatus();
                 waveInProgress = false;
 
@@ -93,7 +92,7 @@ public class WaveSpawner : MonoBehaviour
             }
         }
 
-        // Actualizar UI durante oleada
+      
         if (waveInProgress && countdownText != null && enableHotkeys)
         {
             string expansionInfo = gridIsExpanding ? " (Expandiendo...)" : "";
@@ -102,7 +101,7 @@ public class WaveSpawner : MonoBehaviour
                                $"Presiona {nextWaveHotkey}/{alternativeHotkey} para expandir mapa";
         }
 
-        // NUEVO: Sistema de hotkeys
+  
         if (enableHotkeys)
         {
             HandleHotkeyInput();
@@ -129,17 +128,14 @@ public class WaveSpawner : MonoBehaviour
     
     IEnumerator WaitForPathAndSpawn()
     {
-        // IMPORTANTE: Pasar currentWave + 1 para que la primera oleada sea 1, no 0
-        Debug.Log($"[WaveSpawner] Expandiendo grid para oleada {currentWave + 1}");
         gridManager.ApplyRandomValidTileExpansion(currentWave + 1);
 
         yield return null; 
 
-        // Obtener puntos finales después de la expansión
+     
         List<Vector2Int> endpoints = gridManager.ObtenerPuntosFinales();
         if (endpoints == null || endpoints.Count == 0)
         {
-            Debug.LogError("[WaveSpawner] No hay puntos finales para spawnear.");
             yield break;
         }
 
@@ -148,7 +144,7 @@ public class WaveSpawner : MonoBehaviour
             Mathf.RoundToInt(core.transform.position.z / gridManager.cellSize)
         );
 
-        // Verificar que tenemos un camino válido
+       
         Vector3[] fullPath = gridManager.GetPathPositions();
         if (fullPath == null || fullPath.Length == 0)
         {
@@ -156,7 +152,7 @@ public class WaveSpawner : MonoBehaviour
             yield break;
         }
 
-        // Asegurar que el path va desde los extremos hacia el core
+     
         if (Vector3.Distance(core.transform.position, fullPath[0]) < 0.5f)
         {
             System.Array.Reverse(fullPath);
@@ -166,15 +162,6 @@ public class WaveSpawner : MonoBehaviour
 
         currentWave++;
         waveInProgress = true;
-        
-        // Log para debugging
-        Debug.Log($"[WaveSpawner] Iniciando oleada {currentWave}");
-        Debug.Log($"[WaveSpawner] Puntos de spawn disponibles: {endpoints.Count}");
-        foreach (var endpoint in endpoints)
-        {
-            Debug.Log($"  - Spawn point: {endpoint}");
-        }
-        
         StartCoroutine(SpawnWave(fullPath.ToList(), spawnPos));
     }
 
@@ -192,7 +179,7 @@ public class WaveSpawner : MonoBehaviour
         
         if (puntosFinales.Count == 0)
         {
-            Debug.LogError("No hay puntos finales disponibles!");
+            
             puntosFinales.Add(new Vector2Int(
                 Mathf.RoundToInt(spawnPos.x / gridManager.cellSize),
                 Mathf.RoundToInt(spawnPos.z / gridManager.cellSize)
@@ -202,7 +189,7 @@ public class WaveSpawner : MonoBehaviour
 
         Vector2Int coreGridPos = new Vector2Int(gridManager.width / 2, 0);
 
-        // Distribuir enemigos entre todos los puntos de spawn
+        //puntos de spawn
         int enemiesPerSpawnPoint = Mathf.CeilToInt((float)(totalEnemies - extraEnemies) / puntosFinales.Count);
         int enemiesSpawned = 0;
         int directEnemiesSpawned = 0;
@@ -212,7 +199,6 @@ public class WaveSpawner : MonoBehaviour
         {
             int enemiesToSpawnHere = Mathf.Min(enemiesPerSpawnPoint, (totalEnemies - extraEnemies) - enemiesSpawned);
             
-            Debug.Log($"[WaveSpawner] Spawneando {enemiesToSpawnHere} enemigos en punto {spawnGridPos}");
             
             for (int i = 0; i < enemiesToSpawnHere; i++)
             {
@@ -220,8 +206,8 @@ public class WaveSpawner : MonoBehaviour
 
                 GameObject go;
                 
-                // Estrategia: Alternar entre DirectEnemy y Enemy normal para comparación directa
-                bool spawnDirectEnemy = (enemiesSpawned % 2 == 0); // Alternar cada enemigo
+                // alternar ruta de enemigos
+                bool spawnDirectEnemy = (enemiesSpawned % 2 == 0); 
                 
                 if (spawnDirectEnemy && directEnemiesSpawned < (totalEnemies - extraEnemies) / 2)
                 {
@@ -238,7 +224,7 @@ public class WaveSpawner : MonoBehaviour
                         gridManager
                     );
                     directEnemiesSpawned++;
-                    Debug.Log($"[WaveSpawner] 🔵 DirectEnemy #{directEnemiesSpawned} (DIJKSTRA - Ruta Corta) spawneado en {spawnGridPos}");
+                    Debug.Log($"[WaveSpawner]  DirectEnemy #{directEnemiesSpawned} (DIJKSTRA - Ruta Corta) spawneado en {spawnGridPos}");
                 }
                 else
                 {
@@ -249,15 +235,15 @@ public class WaveSpawner : MonoBehaviour
                     e.enemyType = "Slow";
                     e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
                     normalEnemiesSpawned++;
-                    Debug.Log($"[WaveSpawner] 🔴 Enemy Normal #{normalEnemiesSpawned} (BFS - Ruta Larga) spawneado en {spawnGridPos}");
+                    Debug.Log($"[WaveSpawner]  Enemy Normal #{normalEnemiesSpawned} (BFS - Ruta Larga) spawneado en {spawnGridPos}");
                 }
 
                 enemiesSpawned++;
-                yield return new WaitForSeconds(1f); // Aumentar delay para mejor observación de las diferencias
+                yield return new WaitForSeconds(1f);
             }
         }
 
-        // Spawn de boss/miniboss en un punto aleatorio
+   
         if (isMiniBossWave || isBossWave)
         {
             Vector2Int bossSpawnPoint = puntosFinales[Random.Range(0, puntosFinales.Count)];
@@ -265,12 +251,12 @@ public class WaveSpawner : MonoBehaviour
         
             if (isMiniBossWave)
             {
-                Debug.Log($"[WaveSpawner] 🟠 MiniBoss (BFS FORZADO - Camino MÁS largo) spawneando en {bossSpawnPoint}");
+                Debug.Log($"[WaveSpawner]  MiniBoss (BFS FORZADO - Camino MÁS largo) spawneando en {bossSpawnPoint}");
                 yield return SpawnSpecial("MiniBoss", fullPath, bossSpawnPos);
             }
             else if (isBossWave)
             {
-                Debug.Log($"[WaveSpawner] 🟠 Boss (BFS FORZADO - Camino MÁS largo) spawneando en {bossSpawnPoint}");
+                Debug.Log($"[WaveSpawner]  Boss (BFS FORZADO - Camino MÁS largo) spawneando en {bossSpawnPoint}");
                 yield return SpawnSpecial("Boss", fullPath, bossSpawnPos);
             }
         }
@@ -297,8 +283,8 @@ public class WaveSpawner : MonoBehaviour
         );
 
        
-        Debug.Log($"[WaveSpawner] 🟠 {type} FORZADO a usar BFS (camino largo) desde {spawnGridPos}");
-        e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager); // NUEVO MÉTODO
+       
+        e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
 
         yield return new WaitForSeconds(1f);
     }
@@ -308,13 +294,13 @@ public class WaveSpawner : MonoBehaviour
     public void EnemyKilled(DirectEnemy directEnemy)
     {
         enemiesAlive--;
-        Debug.Log($"[WaveSpawner] 🔵 DirectEnemy (Dijkstra) eliminado. Enemigos restantes: {enemiesAlive}");
+        
     }
 
     public void EnemyKilled(Enemy enemy)
     {
         enemiesAlive--;
-        Debug.Log($"[WaveSpawner] 🔴 Enemy Normal (BFS) eliminado. Enemigos restantes: {enemiesAlive}");
+       
     }
 
     public void RegisterGoldTurret(GoldTurret turret)
@@ -323,63 +309,62 @@ public class WaveSpawner : MonoBehaviour
             goldTurrets.Add(turret);
     }
     
-    // ACTUALIZADO: HandleHotkeyInput para expansión durante oleada
+   
     private void HandleHotkeyInput()
     {
-        // Hotkey para avanzar oleada cuando está esperando
+       
         if (waitingForNextWave && !gridIsExpanding && !isStartingNextWave)
         {
             if (Input.GetKeyDown(nextWaveHotkey) || Input.GetKeyDown(alternativeHotkey))
             {
-                Debug.Log($"[WaveSpawner] Hotkey detectado: Iniciando oleada {currentWave + 1}");
+              
                 StartNextWaveViaHotkey();
             }
         }
         
-        // NUEVO: Hotkey para forzar expansión del grid DURANTE la oleada
+     
         if (Input.GetKeyDown(nextWaveHotkey) || Input.GetKeyDown(alternativeHotkey))
         {
             if (waveInProgress && !gridIsExpanding)
             {
-                Debug.Log($"[WaveSpawner] Hotkey durante oleada: Forzando expansión del mapa");
+             
                 ForceGridExpansion();
             }
         }
         
-        // Hotkeys de desarrollo
+  
         #if UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.F1))
         {
-            Debug.Log("[WaveSpawner] F1: Forzando expansión de grid");
+            
             ForceGridExpansion();
         }
         
         if (Input.GetKeyDown(KeyCode.F2))
         {
-            Debug.Log("[WaveSpawner] F2: Forzando siguiente oleada completa");
+            
             ForceNextWave();
         }
         
         if (Input.GetKeyDown(KeyCode.F3))
         {
-            Debug.Log("[WaveSpawner] F3: Eliminando todos los enemigos");
+          
             KillAllEnemies();
         }
         
         if (Input.GetKeyDown(KeyCode.F4))
         {
-            Debug.Log("[WaveSpawner] F4: Generando múltiples expansiones");
+        
             StartCoroutine(GenerateMultipleExpansions());
         }
         #endif
     }
 
-    // NUEVA FUNCIÓN: Forzar expansión del grid durante oleada activa
+    
     private void ForceGridExpansion()
     {
         if (gridIsExpanding)
         {
-            Debug.LogWarning("[WaveSpawner] Ya hay una expansión en progreso");
             return;
         }
         
@@ -389,31 +374,26 @@ public class WaveSpawner : MonoBehaviour
     private IEnumerator ForceGridExpansionCoroutine()
     {
         gridIsExpanding = true;
-        
-        Debug.Log($"[WaveSpawner] Forzando expansión del grid durante oleada {currentWave}");
-        
-        // Incrementar un número artificial para la expansión
+     
         int fakeWaveNumber = currentWave + UnityEngine.Random.Range(1, 4);
-        
-        // Aplicar expansión
+       
         gridManager.ApplyRandomValidTileExpansion(fakeWaveNumber);
         
-        yield return new WaitForSeconds(0.5f); // Pequeña pausa para ver el cambio
+        yield return new WaitForSeconds(0.5f); 
         
-        // Obtener nuevos puntos de spawn
         List<Vector2Int> newEndpoints = gridManager.ObtenerPuntosFinales();
         Debug.Log($"[WaveSpawner] Expansión completada. Nuevos puntos de spawn: {newEndpoints.Count}");
         
-        // Si hay enemigos vivos, pueden usar los nuevos caminos en su próximo recálculo
+      
         UpdateEnemyPaths();
         
         gridIsExpanding = false;
     }
 
-    // NUEVA FUNCIÓN: Actualizar caminos de enemigos existentes
+  
     private void UpdateEnemyPaths()
     {
-        // Encontrar todos los enemigos activos
+        
         Enemy[] activeEnemies = FindObjectsOfType<Enemy>();
         DirectEnemy[] activeDirectEnemies = FindObjectsOfType<DirectEnemy>();
         
@@ -421,13 +401,13 @@ public class WaveSpawner : MonoBehaviour
         int normalEnemiesUpdated = 0;
         int directEnemiesUpdated = 0;
         
-        Debug.Log("[WaveSpawner] Actualizando rutas de enemigos existentes...");
+        
         
         foreach (Enemy enemy in activeEnemies)
         {
             if (!enemy.name.Contains("Pool") && enemy.gameObject.activeInHierarchy)
             {
-                // Recalcular ruta desde posición actual usando BFS
+               
                 Vector2Int currentGridPos = new Vector2Int(
                     Mathf.RoundToInt(enemy.transform.position.x / gridManager.cellSize),
                     Mathf.RoundToInt(enemy.transform.position.z / gridManager.cellSize)
@@ -437,7 +417,7 @@ public class WaveSpawner : MonoBehaviour
                 {
                     enemy.InitializePath(currentGridPos, coreGridPos, core, this, gridManager);
                     normalEnemiesUpdated++;
-                    Debug.Log($"[WaveSpawner] 🔴 Enemy Normal ruta actualizada (BFS) desde {currentGridPos}");
+                    Debug.Log($"[WaveSpawner]  Enemy Normal ruta actualizada (BFS) desde {currentGridPos}");
                 }
             }
         }
@@ -446,7 +426,7 @@ public class WaveSpawner : MonoBehaviour
         {
             if (!directEnemy.name.Contains("Pool") && directEnemy.gameObject.activeInHierarchy)
             {
-                // Recalcular ruta desde posición actual usando Dijkstra
+                
                 Vector2Int currentGridPos = new Vector2Int(
                     Mathf.RoundToInt(directEnemy.transform.position.x / gridManager.cellSize),
                     Mathf.RoundToInt(directEnemy.transform.position.z / gridManager.cellSize)
@@ -456,18 +436,18 @@ public class WaveSpawner : MonoBehaviour
                 {
                     directEnemy.InitializePathDirect(currentGridPos, coreGridPos, core, this, gridManager);
                     directEnemiesUpdated++;
-                    Debug.Log($"[WaveSpawner] 🔵 DirectEnemy ruta actualizada (Dijkstra) desde {currentGridPos}");
+                    Debug.Log($"[WaveSpawner]  DirectEnemy ruta actualizada (Dijkstra) desde {currentGridPos}");
                 }
             }
         }
         
-        Debug.Log($"[WaveSpawner] Actualización completada:");
+        
         Debug.Log($"  - DirectEnemies actualizados (Dijkstra): {directEnemiesUpdated}");
         Debug.Log($"  - Normal Enemies actualizados (BFS): {normalEnemiesUpdated}");
-        Debug.Log($"[WaveSpawner] ¡Observa cómo los azules toman nuevos atajos y los rojos dan vueltas!");
+       
     }
 
-    // NUEVA FUNCIÓN: Iniciar oleada vía hotkey
+   
     private void StartNextWaveViaHotkey()
     {
         if (waitingForNextWave && !gridIsExpanding && !isStartingNextWave)
@@ -477,44 +457,43 @@ public class WaveSpawner : MonoBehaviour
             nextWaveButton.gameObject.SetActive(false);
             countdownText.text = "";
             
-            Debug.Log($"[WaveSpawner] Iniciando oleada {currentWave + 1} vía hotkey");
+           
             StartNextWave();
         }
     }
 
-    // NUEVA FUNCIÓN: Forzar oleada (solo desarrollo)
+    
     #if UNITY_EDITOR
     private void ForceNextWave()
     {
         if (waveInProgress)
         {
-            // Si hay oleada en progreso, eliminar todos los enemigos primero
+           
             KillAllEnemies();
         }
         
-        // Resetear estados
+      
         waitingForNextWave = false;
         gridIsExpanding = false;
         waveInProgress = false;
         isStartingNextWave = false;
-        
-        // Ocultar UI
+
         nextWaveButton.gameObject.SetActive(false);
         countdownText.text = "";
         
-        // Iniciar siguiente oleada
+      
         StartNextWave();
     }
 
     private void KillAllEnemies()
     {
-        // Encontrar todos los enemigos activos y eliminarlos
+        
         Enemy[] allEnemies = FindObjectsOfType<Enemy>();
         DirectEnemy[] allDirectEnemies = FindObjectsOfType<DirectEnemy>();
         
         foreach (Enemy enemy in allEnemies)
         {
-            if (!enemy.gameObject.name.Contains("Pool")) // No afectar enemigos en pool
+            if (!enemy.gameObject.name.Contains("Pool")) 
             {
                 enemy.GetComponent<Enemy>()?.Die();
             }
@@ -524,32 +503,31 @@ public class WaveSpawner : MonoBehaviour
         {
             if (!directEnemy.gameObject.name.Contains("Pool"))
             {
-                // DirectEnemy no tiene método Die público, usar el private
+                
                 directEnemy.SendMessage("Die", SendMessageOptions.DontRequireReceiver);
             }
         }
         
         enemiesAlive = 0;
-        Debug.Log("[WaveSpawner] Todos los enemigos eliminados forzadamente");
+        
     }
 
-    // NUEVA FUNCIÓN: Generar múltiples expansiones rápidas (para testing)
+   
     private IEnumerator GenerateMultipleExpansions()
     {
-        Debug.Log("[WaveSpawner] Generando múltiples expansiones para testing...");
         
         for (int i = 0; i < 3; i++)
         {
             yield return new WaitForSeconds(0.5f);
             ForceGridExpansion();
-            yield return new WaitForSeconds(1f); // Esperar a que termine la expansión
+            yield return new WaitForSeconds(1f);
         }
         
-        Debug.Log("[WaveSpawner] Múltiples expansiones completadas");
+       
     }
     #endif
 
-    // Modificar StartWaveDelay para mostrar información del hotkey
+
     IEnumerator StartWaveDelay()
     {
         float timer = 30f;
@@ -568,7 +546,7 @@ public class WaveSpawner : MonoBehaviour
             timer -= Time.deltaTime;
             if (countdownText != null)
             {
-                // Mostrar información del hotkey en el texto del countdown
+              
                 string hotkeyInfo = enableHotkeys ? $"\nPresiona {nextWaveHotkey} o {alternativeHotkey} para avanzar" : "";
                 countdownText.text = $"Próxima oleada en: {Mathf.CeilToInt(timer)}s{hotkeyInfo}";
             }
@@ -584,7 +562,7 @@ public class WaveSpawner : MonoBehaviour
         }
     }
 
-    // NUEVA FUNCIÓN: Configurar hotkeys desde inspector o código
+
     public void SetHotkeys(KeyCode primary, KeyCode secondary = KeyCode.None)
     {
         nextWaveHotkey = primary;
@@ -592,13 +570,13 @@ public class WaveSpawner : MonoBehaviour
         {
             alternativeHotkey = secondary;
         }
-        Debug.Log($"[WaveSpawner] Hotkeys configurados: {primary}" + (secondary != KeyCode.None ? $" y {secondary}" : ""));
+       
     }
 
-    // NUEVA FUNCIÓN: Toggle hotkeys
+   
     public void ToggleHotkeys(bool enabled)
     {
         enableHotkeys = enabled;
-        Debug.Log($"[WaveSpawner] Hotkeys {(enabled ? "habilitados" : "deshabilitados")}");
+      
     }
 }

@@ -1189,6 +1189,7 @@ MonoBehaviour:
   cellSize: 1
   pathPositions: []
   currentPathEnd: {x: 0, y: 0}
+  tileCount: 0
 --- !u!1 &453093054
 GameObject:
   m_ObjectHideFlags: 0
@@ -1865,10 +1866,13 @@ MonoBehaviour:
   fastEnemyPrefab: {fileID: 5019013483156572802, guid: 678800d79bc228a4d95e427c9245fa04, type: 3}
   miniBossPrefab: {fileID: 5019013483156572802, guid: 066f856d370124e4eb2c3da597d61f14, type: 3}
   bossPrefab: {fileID: 5019013483156572802, guid: 6900e95feda5f1542940cf9e4519e655, type: 3}
+  nextWaveHotkey: 32
+  alternativeHotkey: 13
+  enableHotkeys: 1
   gridManager: {fileID: 412535789}
   core: {fileID: 4187024404077585579, guid: 3e9834290c753a644b8b145d60aee381, type: 3}
   maxWaves: 45
-  enemiesPerWave: 3
+  enemiesPerWave: 1
   nextWaveButton: {fileID: 1703932023}
   countdownText: {fileID: 107658197}
 --- !u!114 &775839249
@@ -4041,6 +4045,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2105042074}
   m_CullTransparentMesh: 1
+--- !u!1001 &1620184949186407696
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.037870407
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.10738754
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.037867546
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 706959927718728779, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4416475176374936327, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
+      propertyPath: m_Name
+      value: HotKeys
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: ad454d3fc423f5a4b9a6113f24a668d6, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -4058,3 +4119,4 @@ SceneRoots:
   - {fileID: 1488953026}
   - {fileID: 631032256}
   - {fileID: 1779631385}
+  - {fileID: 1620184949186407696}
