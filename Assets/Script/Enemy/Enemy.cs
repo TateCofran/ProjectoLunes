@@ -52,8 +52,9 @@ public class Enemy : MonoBehaviour
         gridManager = manager;
         currentHealth = maxHealth;
 
-     
-        pathPositions = gridManager.ObtenerCaminoNormalWorld(spawnGridPos, coreGridPos);
+
+        pathPositions = gridManager.ObtenerCaminoMasLargo(spawnGridPos, coreGridPos);
+
         Debug.Log($"[ENEMY NORMAL - BFS] pathPositions: {string.Join(" -> ", pathPositions?.Select(p => p.ToString()) ?? new string[0])}");
 
         mainPathPositions = pathPositions;

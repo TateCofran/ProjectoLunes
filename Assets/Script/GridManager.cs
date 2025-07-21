@@ -881,5 +881,51 @@ private int ObtenerPesoAristaEstimado(int desde, int hacia)
     }
 
 
+    public Vector3[] ObtenerCaminoMasLargo(Vector2Int inicio, Vector2Int fin)
+    {
+        if (!celdaToVertice.ContainsKey(inicio) || !celdaToVertice.ContainsKey(fin))
+            return null;
+
+        int vInicio = celdaToVertice[inicio];
+        int vFin = celdaToVertice[fin];
+
+        List<int> mejorCamino = new List<int>();
+        List<int> caminoActual = new List<int>();
+        HashSet<int> visitados = new HashSet<int>();
+
+        void DFS(int actual)
+        {
+            caminoActual.Add(actual);
+            visitados.Add(actual);
+
+            if (actual == vFin)
+            {
+                if (caminoActual.Count > mejorCamino.Count)
+                    mejorCamino = new List<int>(caminoActual);
+            }
+            else
+            {
+                for (int i = 0; i < grafo.cantNodos; i++)
+                {
+                    if (grafo.ExisteArista(actual, i) && !visitados.Contains(i))
+                        DFS(i);
+                }
+            }
+
+            caminoActual.RemoveAt(caminoActual.Count - 1);
+            visitados.Remove(actual);
+        }
+
+        DFS(vInicio);
+
+        if (mejorCamino.Count == 0)
+            return null;
+
+        // Convertir indices a posiciones en mundo
+        var path = mejorCamino.Select(id => celdaToVertice.First(x => x.Value == id).Key)
+                              .Select(pos => new Vector3(pos.x * cellSize, 0, pos.y * cellSize))
+                              .ToArray();
+        return path;
+    }
 
 }
