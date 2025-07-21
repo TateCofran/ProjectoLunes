@@ -52,16 +52,26 @@ public class Enemy : MonoBehaviour
         gridManager = manager;
         currentHealth = maxHealth;
 
-        pathPositions = gridManager.ObtenerCaminoOptimoWorld(spawnGridPos, coreGridPos);
-        Debug.Log($"[ENEMY] pathPositions: {string.Join(" -> ", pathPositions.Select(p => p.ToString()))}");
+        // CAMBIO CLAVE: Enemy normal usa BFS (evita atajos, prefiere caminos largos)
+        pathPositions = gridManager.ObtenerCaminoNormalWorld(spawnGridPos, coreGridPos);
+        Debug.Log($"[ENEMY NORMAL - BFS] pathPositions: {string.Join(" -> ", pathPositions?.Select(p => p.ToString()) ?? new string[0])}");
 
         mainPathPositions = pathPositions;
         currentPathIndex = 1;
 
         if (pathPositions == null || pathPositions.Length == 0)
         {
-            Debug.LogError("pathPositions est� vac�o o NULL.");
-            return;
+            Debug.LogError("[ENEMY NORMAL - BFS] pathPositions está vacío o NULL usando BFS.");
+        
+            // Fallback: si BFS falla, usar Dijkstra como último recurso
+            Debug.LogWarning("[ENEMY NORMAL - BFS] Fallback a Dijkstra por emergencia");
+            pathPositions = gridManager.ObtenerCaminoOptimoWorld(spawnGridPos, coreGridPos);
+        
+            if (pathPositions == null || pathPositions.Length == 0)
+            {
+                Debug.LogError("[ENEMY NORMAL - BFS] Incluso Dijkstra falló. Enemy sin ruta.");
+                return;
+            }
         }
 
         if (healthBarPrefab != null)
@@ -197,16 +207,76 @@ public class Enemy : MonoBehaviour
     }
 
     void OnDrawGizmosSelected()
+{
+    if (pathPositions != null && pathPositions.Length > 1)
     {
-        if (pathPositions != null && pathPositions.Length > 1)
+        // Camino completo en rojo (Enemy normal usa BFS - caminos largos)
+        Gizmos.color = Color.red;
+        for (int i = 0; i < pathPositions.Length - 1; i++)
         {
-            Gizmos.color = Color.red;
-            for (int i = 0; i < pathPositions.Length - 1; i++)
+            Vector3 from = pathPositions[i] + Vector3.up * 0.4f;
+            Vector3 to = pathPositions[i + 1] + Vector3.up * 0.4f;
+            
+            // Líneas más gruesas para BFS (caminos menos eficientes)
+            for (float offset = -0.02f; offset <= 0.02f; offset += 0.01f)
             {
-                Gizmos.DrawLine(pathPositions[i] + Vector3.up * 0.3f, pathPositions[i + 1] + Vector3.up * 0.3f);
+                Gizmos.DrawLine(from + Vector3.right * offset, to + Vector3.right * offset);
             }
         }
+        
+        // Mostrar punto actual en naranja brillante
+        if (currentPathIndex < pathPositions.Length)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawSphere(pathPositions[currentPathIndex] + Vector3.up * 0.4f, 0.3f);
+        }
+        
+        // Mostrar punto de inicio en verde
+        Gizmos.color = Color.green;
+        Gizmos.DrawSphere(pathPositions[0] + Vector3.up * 0.4f, 0.25f);
+        
+        // Mostrar punto final en magenta
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawSphere(pathPositions[pathPositions.Length - 1] + Vector3.up * 0.4f, 0.25f);
     }
+}
+
+// Gizmos que siempre se muestran para identificar el tipo de enemigo
+void OnDrawGizmos()
+{
+    if (!isDead && pathPositions != null && pathPositions.Length > 0)
+    {
+        // Línea desde la posición actual al siguiente objetivo (más gruesa para BFS)
+        if (currentPathIndex < pathPositions.Length)
+        {
+            Gizmos.color = Color.red;
+            Vector3 start = transform.position;
+            Vector3 end = pathPositions[currentPathIndex];
+            
+            // Línea principal
+            Gizmos.DrawLine(start, end);
+            
+            // Líneas adicionales para hacer más visible el camino BFS
+            Gizmos.DrawLine(start + Vector3.right * 0.1f, end + Vector3.right * 0.1f);
+            Gizmos.DrawLine(start - Vector3.right * 0.1f, end - Vector3.right * 0.1f);
+            
+            // Etiqueta del enemigo
+            #if UNITY_EDITOR
+            UnityEditor.Handles.color = Color.red;
+            UnityEditor.Handles.Label(transform.position + Vector3.up * 2f, 
+                $"Enemy Normal (BFS)\n" +
+                $"Camino Largo/Ineficiente\n" +
+                $"Evita Atajos\n" +
+                $"Next: {currentPathIndex}/{pathPositions.Length}\n" +
+                $"Ruta: {pathPositions.Length} puntos");
+            #endif
+        }
+        
+        // Indicador visual del tipo de pathfinding
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position + Vector3.up * 1.8f, 0.2f);
+    }
+}
 
 }
 

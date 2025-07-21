@@ -4,7 +4,7 @@ using System.Collections;
 
 public class Core : MonoBehaviour
 {
-    public int maxHealth = 3;
+    public int maxHealth = 1000;
     private int currentHealth;
 
     void Start()
@@ -19,7 +19,7 @@ public class Core : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            Debug.Log("¡El núcleo fue destruido!");
+            Debug.Log("ï¿½El nï¿½cleo fue destruido!");
             GameManager.Instance.OnCoreDestroyed();
         }
     }

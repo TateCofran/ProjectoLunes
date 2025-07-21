@@ -26,7 +26,7 @@ public class GridManager : MonoBehaviour
     public List<PlacedTileData> placedTiles = new List<PlacedTileData>();
 
     public Vector2Int currentPathEnd;
-    private int tileCount = 0;
+    public int tileCount = 0;
 
     private List<Vector2Int> caminoOptimoDebug = null;
 
@@ -617,8 +617,10 @@ public List<Vector2Int> ObtenerPuntosFinales()
         int vInicio = celdaToVertice[inicio];
         int vFin = celdaToVertice[fin];
 
-        AlgDijkstra.Dijkstra(grafo, vInicio);
+        Debug.Log($"[GridManager] DIJKSTRA (DirectEnemy): Desde vértice {vInicio} ({inicio}) a {vFin} ({fin})");
 
+        // Ejecutar Dijkstra
+        AlgDijkstra.Dijkstra(grafo, vInicio);
 
         int idxDestino = -1;
         for (int i = 0; i < grafo.cantNodos; i++)
@@ -629,11 +631,14 @@ public List<Vector2Int> ObtenerPuntosFinales()
                 break;
             }
         }
+    
         if (idxDestino == -1 || AlgDijkstra.nodos == null || AlgDijkstra.nodos.Length <= idxDestino || AlgDijkstra.nodos[idxDestino] == null)
             return null;
 
         string pathStr = AlgDijkstra.nodos[idxDestino];
         string[] idsStr = pathStr.Split(',');
+
+        Debug.Log($"[GridManager] DIJKSTRA resultado: {pathStr}");
 
         // Convertir de IDs a Vector2Int
         List<Vector2Int> camino = new List<Vector2Int>();
@@ -641,11 +646,13 @@ public List<Vector2Int> ObtenerPuntosFinales()
         {
             if (int.TryParse(idStr, out int id))
             {
-                // Buscar la posición correspondiente a ese id
                 Vector2Int pos = celdaToVertice.FirstOrDefault(x => x.Value == id).Key;
-                if (pos != null) camino.Add(pos);
+                if (!pos.Equals(default(Vector2Int))) camino.Add(pos);
             }
         }
+    
+        Debug.Log($"[GridManager] DIJKSTRA camino convertido: {string.Join(" -> ", camino)}");
+        Debug.Log($"[GridManager] DIJKSTRA longitud del camino: {camino.Count} puntos (ruta óptima)");
         return camino;
     }
     public void DebugCaminoOptimo(Vector2Int inicio, Vector2Int fin)
@@ -692,7 +699,156 @@ public List<Vector2Int> ObtenerPuntosFinales()
         return bloqueadas;
     }
 
+public Vector3[] ObtenerCaminoNormalWorld(Vector2Int inicio, Vector2Int fin)
+{
+    Debug.Log($"[GridManager] Enemy Normal: Calculando camino BFS desde {inicio} hacia {fin}");
+    
+    var camino = ObtenerCaminoBFS(inicio, fin);
+    if (camino == null || camino.Count == 0)
+    {
+        Debug.LogError($"[GridManager] Enemy Normal: No se pudo encontrar camino BFS desde {inicio} a {fin}");
+        
+        // Fallback a Dijkstra si BFS falla
+        Debug.LogWarning($"[GridManager] Enemy Normal: Usando Dijkstra como fallback");
+        camino = ObtenerCaminoOptimo(inicio, fin);
+        
+        if (camino == null)
+        {
+            return null;
+        }
+    }
+    
+    Debug.Log($"[GridManager] Enemy Normal: Camino BFS encontrado con {camino.Count} puntos");
+    return camino.Select(pos => new Vector3(pos.x * cellSize, 0, pos.y * cellSize)).ToArray();
+}
 
+// BFS que evita rutas de peso 1 (atajos) para simular comportamiento menos inteligente
+private List<Vector2Int> ObtenerCaminoBFS(Vector2Int inicio, Vector2Int fin)
+{
+    if (!celdaToVertice.ContainsKey(inicio) || !celdaToVertice.ContainsKey(fin))
+        return null;
+
+    int vInicio = celdaToVertice[inicio];
+    int vFin = celdaToVertice[fin];
+
+    Debug.Log($"[GridManager] BFS: Desde vértice {vInicio} ({inicio}) a {vFin} ({fin})");
+
+    var visitados = new HashSet<int>();
+    var anterior = new Dictionary<int, int>();
+    var cola = new Queue<int>();
+
+    visitados.Add(vInicio);
+    cola.Enqueue(vInicio);
+
+    while (cola.Count > 0)
+    {
+        int actual = cola.Dequeue();
+        if (actual == vFin) break;
+
+        // Obtener todas las conexiones válidas
+        List<(int vertice, int peso)> conexiones = new List<(int, int)>();
+        
+        for (int i = 0; i < grafo.cantNodos; i++)
+        {
+            if (grafo.ExisteArista(actual, i) && !visitados.Contains(i))
+            {
+                int pesoArista = ObtenerPesoAristaEstimado(actual, i);
+                conexiones.Add((i, pesoArista));
+            }
+        }
+
+        // CLAVE: Ordenar conexiones poniendo los pesos mayores primero (evitar atajos)
+        conexiones.Sort((a, b) => b.peso.CompareTo(a.peso));
+
+        // Procesar las conexiones (las de peso mayor se procesarán primero)
+        foreach (var (vecino, peso) in conexiones)
+        {
+            if (!visitados.Contains(vecino))
+            {
+                visitados.Add(vecino);
+                anterior[vecino] = actual;
+                cola.Enqueue(vecino);
+                
+                // Debug para ver qué caminos elige BFS
+                Vector2Int posVecino = celdaToVertice.FirstOrDefault(x => x.Value == vecino).Key;
+                Debug.Log($"[BFS] Eligiendo conexión con peso {peso} hacia {posVecino}");
+            }
+        }
+    }
+
+    // Reconstruir camino
+    if (!visitados.Contains(vFin))
+    {
+        Debug.LogWarning($"[GridManager] BFS: No se encontró camino de {inicio} a {fin}");
+        return null;
+    }
+
+    List<int> caminoVertices = new List<int>();
+    int temp = vFin;
+    while (temp != vInicio)
+    {
+        caminoVertices.Add(temp);
+        temp = anterior[temp];
+    }
+    caminoVertices.Add(vInicio);
+    caminoVertices.Reverse();
+
+    // Convertir a Vector2Int
+    List<Vector2Int> camino = new List<Vector2Int>();
+    foreach (int vertice in caminoVertices)
+    {
+        var kvp = celdaToVertice.FirstOrDefault(x => x.Value == vertice);
+        if (!kvp.Equals(default(KeyValuePair<Vector2Int, int>)))
+        {
+            camino.Add(kvp.Key);
+        }
+    }
+
+    Debug.Log($"[GridManager] BFS resultado: {string.Join(" -> ", camino)}");
+    Debug.Log($"[GridManager] BFS longitud del camino: {camino.Count} puntos (vs Dijkstra que sería más corto)");
+    
+    return camino;
+}
+
+// Función auxiliar mejorada para estimar el peso de una arista
+private int ObtenerPesoAristaEstimado(int desde, int hacia)
+{
+    try
+    {
+        Vector2Int posDesde = celdaToVertice.FirstOrDefault(x => x.Value == desde).Key;
+        Vector2Int posHacia = celdaToVertice.FirstOrDefault(x => x.Value == hacia).Key;
+        
+        // Estimar peso basado en la distancia y contexto
+        float distancia = Vector2Int.Distance(posDesde, posHacia);
+        
+        // Si están muy cerca (adyacentes), probablemente es parte del camino principal (peso 1)
+        if (distancia <= 1.1f)
+        {
+            // Verificar si es un atajo central mirando si está cerca del core o en línea recta
+            Vector2Int corePos = new Vector2Int(width / 2, 0);
+            Vector2Int direccion = posHacia - posDesde;
+            
+            // Si la conexión es vertical hacia el core, probablemente es un atajo
+            if (Mathf.Abs(direccion.x) == 0 && direccion.y != 0)
+            {
+                return 1; // Atajo central
+            }
+            else
+            {
+                return 2; // Camino normal
+            }
+        }
+        // Si están más lejos, probablemente es parte del camino circular (peso 3)
+        else
+        {
+            return 3; // Camino circular largo
+        }
+    }
+    catch
+    {
+        return 2; // Peso por defecto intermedio
+    }
+}
     public Vector3[] ObtenerCaminoEvitarTorretas(Vector2Int inicio, Vector2Int fin, List<Vector2Int> celdasBloqueadas)
     {
         // BFS modificado que saltea los nodos bloqueados
