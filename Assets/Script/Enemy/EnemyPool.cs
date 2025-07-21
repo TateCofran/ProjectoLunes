@@ -10,6 +10,8 @@ public class EnemyPool : MonoBehaviour
     [SerializeField] private GameObject miniBossPrefab;
     [SerializeField] private GameObject bossPrefab;
     [SerializeField] private int initialSizePerType = 10;
+    [SerializeField] private GameObject directEnemyPrefab;
+
 
     public Dictionary<string, ColaTF<GameObject>> pools = new Dictionary<string, ColaTF<GameObject>>();
     private Dictionary<string, int> totalInstantiated = new Dictionary<string, int>();
@@ -23,6 +25,7 @@ public class EnemyPool : MonoBehaviour
         pools["Fast"] = new ColaTF<GameObject>();
         pools["MiniBoss"] = new ColaTF<GameObject>();
         pools["Boss"] = new ColaTF<GameObject>();
+        pools["Direct"] = new ColaTF<GameObject>();
 
         // Inicializar colas y contadores
         foreach (var pool in pools.Values)
@@ -34,12 +37,14 @@ public class EnemyPool : MonoBehaviour
         totalInstantiated["Fast"] = 0;
         totalInstantiated["MiniBoss"] = 0;
         totalInstantiated["Boss"] = 0;
+        totalInstantiated["Direct"] = 0;
 
         // Inicializar objetos del pool
         InitializePool(slowEnemyPrefab, "Slow");
         InitializePool(fastEnemyPrefab, "Fast");
         InitializePool(miniBossPrefab, "MiniBoss", 2);
         InitializePool(bossPrefab, "Boss", 1);
+        InitializePool(directEnemyPrefab, "Direct");
     }
 
     void InitializePool(GameObject prefab, string type, int amount = -1)
@@ -68,6 +73,7 @@ public class EnemyPool : MonoBehaviour
                 "Fast" => fastEnemyPrefab,
                 "MiniBoss" => miniBossPrefab,
                 "Boss" => bossPrefab,
+                "Direct" => directEnemyPrefab, // usar DirectEnemy
                 _ => slowEnemyPrefab,
             };
 

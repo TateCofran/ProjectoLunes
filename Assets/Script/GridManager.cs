@@ -721,4 +721,80 @@ public List<Vector2Int> ObtenerPuntosFinales()
     }
 
 
+
+    // Devuelve una lista de Vector2Int con todas las celdas ocupadas por torretas.
+    public List<Vector2Int> ObtenerCeldasConTorretas()
+    {
+        List<Vector2Int> bloqueadas = new List<Vector2Int>();
+        foreach (var par in gridCells)
+        {
+            var cell = par.Value;
+            // Cambia este if según tu lógica para detectar una torreta en esa celda
+            if (cell.GetComponent<Turret>() != null)  // o cualquier lógica que uses
+                bloqueadas.Add(par.Key);
+        }
+        return bloqueadas;
+    }
+
+
+    public Vector3[] ObtenerCaminoEvitarTorretas(Vector2Int inicio, Vector2Int fin, List<Vector2Int> celdasBloqueadas)
+    {
+        // BFS modificado que saltea los nodos bloqueados
+        if (!celdaToVertice.ContainsKey(inicio) || !celdaToVertice.ContainsKey(fin))
+            return null;
+
+        var visitados = new HashSet<int>();
+        var anterior = new Dictionary<int, int>();
+        var cola = new Queue<int>();
+
+        int vInicio = celdaToVertice[inicio];
+        int vFin = celdaToVertice[fin];
+        visitados.Add(vInicio);
+        cola.Enqueue(vInicio);
+
+        // Precalcular los vértices bloqueados
+        var verticesBloqueados = new HashSet<int>(
+            celdasBloqueadas.Where(c => celdaToVertice.ContainsKey(c)).Select(c => celdaToVertice[c])
+        );
+
+        while (cola.Count > 0)
+        {
+            int actual = cola.Dequeue();
+            if (actual == vFin) break;
+
+            for (int i = 0; i < grafo.cantNodos; i++)
+            {
+                if (grafo.ExisteArista(actual, i) && !visitados.Contains(i) && !verticesBloqueados.Contains(i))
+                {
+                    visitados.Add(i);
+                    anterior[i] = actual;
+                    cola.Enqueue(i);
+                }
+            }
+        }
+
+        // Reconstruir el camino
+        if (!visitados.Contains(vFin))
+            return null;
+
+        List<int> camino = new List<int>();
+        int temp = vFin;
+        while (temp != vInicio)
+        {
+            camino.Add(temp);
+            temp = anterior[temp];
+        }
+        camino.Add(vInicio);
+        camino.Reverse();
+
+        // Convertir a posiciones en el mundo
+        var path = camino.Select(id => celdaToVertice.First(x => x.Value == id).Key)
+                         .Select(pos => new Vector3(pos.x * cellSize, 0, pos.y * cellSize))
+                         .ToArray();
+
+        return path;
+    }
+
+
+
 }

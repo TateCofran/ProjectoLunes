@@ -1888,6 +1888,7 @@ MonoBehaviour:
   miniBossPrefab: {fileID: 5019013483156572802, guid: 066f856d370124e4eb2c3da597d61f14, type: 3}
   bossPrefab: {fileID: 5019013483156572802, guid: 6900e95feda5f1542940cf9e4519e655, type: 3}
   initialSizePerType: 10
+  directEnemyPrefab: {fileID: 5019013483156572802, guid: f0c81fcc340cd044fa6315488d92c967, type: 3}
 --- !u!1 &787077452
 GameObject:
   m_ObjectHideFlags: 0

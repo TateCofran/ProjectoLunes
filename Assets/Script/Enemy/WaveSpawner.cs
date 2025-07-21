@@ -223,13 +223,31 @@ public class WaveSpawner : MonoBehaviour
         for (int i = 0; i < enemiesToSpawnHere; i++)
         {
             Vector3 spawnWorldPos = new Vector3(spawnGridPos.x * gridManager.cellSize, 0, spawnGridPos.y * gridManager.cellSize);
-            
-            var go = EnemyPool.Instance.GetEnemy("Slow");
-            var e = go.GetComponent<Enemy>();
 
-            go.transform.position = spawnWorldPos;
-            e.enemyType = "Slow";
-            e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
+            GameObject go;
+            if (enemiesSpawned < 2)
+            {
+                go = EnemyPool.Instance.GetEnemy("Direct");
+                var de = go.GetComponent<DirectEnemy>();
+                go.transform.position = spawnWorldPos;
+                de.enemyType = "Direct";
+                de.InitializePathDirect(
+                    spawnGridPos,
+                    coreGridPos,
+                    core,
+                    this,
+                    gridManager
+                );
+            }
+            else
+            {
+                go = EnemyPool.Instance.GetEnemy("Slow");
+                var e = go.GetComponent<Enemy>();
+                go.transform.position = spawnWorldPos;
+                e.enemyType = "Slow";
+                e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
+            }
+
             
             enemiesSpawned++;
             Debug.Log($"[WaveSpawner] Enemigo {enemiesSpawned}/{totalEnemies} spawneado en {spawnGridPos}");
