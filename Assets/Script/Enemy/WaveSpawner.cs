@@ -38,7 +38,7 @@ public class WaveSpawner : MonoBehaviour
     {
         if (nextWaveButton == null || countdownText == null || gridManager == null || core == null)
         {
-            Debug.LogError("[WaveSpawner] Un campo no está asignado en el inspector");
+            Debug.LogError("[WaveSpawner] Un campo no estï¿½ asignado en el inspector");
             enabled = false;
             return;
         }
@@ -82,12 +82,14 @@ public class WaveSpawner : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("¡Ganaste! Todas las oleadas completadas.");
+                    Debug.Log("ï¿½Ganaste! Todas las oleadas completadas.");
                     GameManager.Instance.OnVictory();
                 }
             }
         }
     }
+    
+    
 
     IEnumerator StartWaveDelay()
     {
@@ -106,7 +108,7 @@ public class WaveSpawner : MonoBehaviour
         {
             timer -= Time.deltaTime;
             if (countdownText != null)
-                countdownText.text = $"Próxima oleada en: {Mathf.CeilToInt(timer)}s";
+                countdownText.text = $"Prï¿½xima oleada en: {Mathf.CeilToInt(timer)}s";
             yield return null;
         }
 
@@ -137,22 +139,37 @@ public class WaveSpawner : MonoBehaviour
         StartCoroutine(WaitForPathAndSpawn());
     }
 
+    
     IEnumerator WaitForPathAndSpawn()
     {
-        gridManager.ApplyRandomValidTileExpansion();
+        gridManager.ApplyRandomValidTileExpansion(currentWave + 1);
 
         yield return null; 
+        
+        
+        
+        List<Vector2Int> endpoints = gridManager.ObtenerPuntosFinales();
+        if (endpoints == null || endpoints.Count == 0)
+        {
+            Debug.LogError("[WaveSpawner] No hay puntos finales para spawnear.");
+            yield break;
+        }
 
+        Vector2Int coreGrid = new Vector2Int(
+            Mathf.RoundToInt(core.transform.position.x / gridManager.cellSize),
+            Mathf.RoundToInt(core.transform.position.z / gridManager.cellSize)
+        );
         Vector3[] fullPath = gridManager.GetPathPositions();
         //Debug.Log("[PATH] --- Puntos del camino:");
         for (int i = 0; i < fullPath.Length; i++)
         {
             //Debug.Log($"[{i}] {fullPath[i]}");
         }
+        
 
         if (fullPath == null || fullPath.Length == 0)
         {
-            Debug.LogError("[WaveSpawner] No se generó ningún camino. Abortando oleada.");
+            Debug.LogError("[WaveSpawner] No se generï¿½ ningï¿½n camino. Abortando oleada.");
             yield break;
         }
         if (Vector3.Distance(core.transform.position, fullPath[0]) < 0.5f)
@@ -167,60 +184,72 @@ public class WaveSpawner : MonoBehaviour
         StartCoroutine(SpawnWave(fullPath.ToList(), spawnPos));
     }
 
+    
 
-    IEnumerator SpawnWave(List<Vector3> fullPath, Vector3 spawnPos)
+   IEnumerator SpawnWave(List<Vector3> fullPath, Vector3 spawnPos)
+{
+    bool isBossWave = currentWave % 15 == 0;
+    bool isMiniBossWave = currentWave % 5 == 0 && !isBossWave;
+
+    int extraEnemies = (isBossWave ? 1 : 0) + (isMiniBossWave ? 1 : 0);
+    int totalEnemies = enemiesPerWave + (currentWave - 1) * 4 + extraEnemies;
+    enemiesAlive = totalEnemies;
+
+    // Obtener TODOS los puntos finales disponibles
+    List<Vector2Int> puntosFinales = gridManager.ObtenerPuntosFinales();
+    
+    Debug.Log($"[WaveSpawner] Spawneando desde {puntosFinales.Count} puntos diferentes");
+    
+    if (puntosFinales.Count == 0)
     {
-        bool isBossWave = currentWave % 15 == 0;
-        bool isMiniBossWave = currentWave % 5 == 0 && !isBossWave;
+        Debug.LogError("No hay puntos finales disponibles!");
+        // Usar el punto por defecto
+        puntosFinales.Add(new Vector2Int(
+            Mathf.RoundToInt(spawnPos.x / gridManager.cellSize),
+            Mathf.RoundToInt(spawnPos.z / gridManager.cellSize)
+        ));
+    }
 
-        int extraEnemies = (isBossWave ? 1 : 0) + (isMiniBossWave ? 1 : 0);
-        int totalEnemies = enemiesPerWave + (currentWave - 1) * 4 + extraEnemies;
-        enemiesAlive = totalEnemies;
+    Vector2Int coreGridPos = new Vector2Int(gridManager.width / 2, 0);
 
-        //Debug.Log($"Oleada {currentWave} iniciada. Spawneando {enemiesAlive} enemigos.");
+    // Distribuir enemigos entre todos los puntos de spawn
+    int enemiesPerSpawnPoint = Mathf.CeilToInt((float)(totalEnemies - extraEnemies) / puntosFinales.Count);
+    int enemiesSpawned = 0;
 
-
-        Vector3[] path = fullPath.ToArray();
-        spawnPos = path[path.Length - 1]; 
-
-        Vector3 spawnWorldPos = path[path.Length - 1];
-        Vector2Int spawnGridPos = new Vector2Int(
-            Mathf.RoundToInt(spawnWorldPos.x / gridManager.cellSize),
-            Mathf.RoundToInt(spawnWorldPos.z / gridManager.cellSize)
-        );
-
-        Vector3 coreWorldPos = path[0]; 
-        Vector2Int coreGridPos = new Vector2Int(
-            Mathf.RoundToInt(coreWorldPos.x / gridManager.cellSize),
-            Mathf.RoundToInt(coreWorldPos.z / gridManager.cellSize)
-        );
-
-
-        // spawn normales
-        for (int i = 0; i < totalEnemies - extraEnemies; i++)
+    foreach (var spawnGridPos in puntosFinales)
+    {
+        int enemiesToSpawnHere = Mathf.Min(enemiesPerSpawnPoint, (totalEnemies - extraEnemies) - enemiesSpawned);
+        
+        for (int i = 0; i < enemiesToSpawnHere; i++)
         {
+            Vector3 spawnWorldPos = new Vector3(spawnGridPos.x * gridManager.cellSize, 0, spawnGridPos.y * gridManager.cellSize);
+            
             var go = EnemyPool.Instance.GetEnemy("Slow");
             var e = go.GetComponent<Enemy>();
 
-            go.transform.position = spawnPos; 
-
+            go.transform.position = spawnWorldPos;
             e.enemyType = "Slow";
-
-
             e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
-
-            //Debug.Log($"[SPAWN ENEMY] Instanciando enemigo en: {spawnPos}");
-
-            yield return new WaitForSeconds(1f);
+            
+            enemiesSpawned++;
+            Debug.Log($"[WaveSpawner] Enemigo {enemiesSpawned}/{totalEnemies} spawneado en {spawnGridPos}");
+            
+            yield return new WaitForSeconds(0.5f);
         }
-
-
-        // spawn mini-boss / boss
-        if (isMiniBossWave)
-            yield return SpawnSpecial("MiniBoss", fullPath, spawnPos);
-        else if (isBossWave)
-            yield return SpawnSpecial("Boss", fullPath, spawnPos);
     }
+
+    // Spawn de boss/miniboss en un punto aleatorio
+    if (isMiniBossWave || isBossWave)
+    {
+        Vector2Int bossSpawnPoint = puntosFinales[Random.Range(0, puntosFinales.Count)];
+        Vector3 bossSpawnPos = new Vector3(bossSpawnPoint.x * gridManager.cellSize, 0, bossSpawnPoint.y * gridManager.cellSize);
+        
+        if (isMiniBossWave)
+            yield return SpawnSpecial("MiniBoss", fullPath, bossSpawnPos);
+        else if (isBossWave)
+            yield return SpawnSpecial("Boss", fullPath, bossSpawnPos);
+    }
+}
 
     IEnumerator SpawnSpecial(string type, List<Vector3> fullPath, Vector3 spawnPos)
     {
