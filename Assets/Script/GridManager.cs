@@ -156,7 +156,7 @@ public class GridManager : MonoBehaviour
     {
         return !celdaToVertice.ContainsKey(pos);
     }
-   public void ApplyTileExpansionAtWorldPosition(TileExpansion tile, Vector3 worldPosition)
+  public void ApplyTileExpansionAtWorldPosition(TileExpansion tile, Vector3 worldPosition)
 {
     tileCount++;
     GameObject tileParent = new GameObject($"Tile-{tileCount}");
@@ -168,7 +168,6 @@ public class GridManager : MonoBehaviour
     Vector2Int tileOffset = Vector2Int.zero;
     if (pathDirection == Vector2Int.up) tileOffset = new Vector2Int(-tile.tileSize.x / 2, 1);
     else if (pathDirection == Vector2Int.right) tileOffset = new Vector2Int(1, -tile.tileSize.y / 2);
-    else if (pathDirection == Vector2Int.down) tileOffset = new Vector2Int(-tile.tileSize.x / 2, -tile.tileSize.y);
     else if (pathDirection == Vector2Int.left) tileOffset = new Vector2Int(-tile.tileSize.x, -tile.tileSize.y / 2);
 
     Vector2Int bottomLeft = currentPathEnd + tileOffset;
@@ -191,7 +190,6 @@ public class GridManager : MonoBehaviour
     }
 
     // Crear el camino principal
-    Vector2Int prevPath = startPath;
     for (int i = 0; i < rotatedOffsets.Count; i++)
     {
         Vector2Int pathPos = startPath + rotatedOffsets[i];
@@ -214,208 +212,162 @@ public class GridManager : MonoBehaviour
         {
             ConectarCeldas(currentPathEnd, pathPos, 1);
         }
-        prevPath = pathPos;
     }
 
-    // SI ES UNA BIFURCACIÓN EN T
-    if (tile.tileName == "T-Bifurcacion")
+    // NUEVO: Manejar el tile circular
+    if (tile.tileName == "Circular-Redoma")
     {
-        Debug.Log("[GridManager] Creando bifurcación en T");
-        CrearBifurcacionT(startPath, rotatedOffsets, pathDirection, tileParent);
-        // No actualizar currentPathEnd aquí
+        Debug.Log("[GridManager] Creando tile circular tipo redoma");
+        CrearRedomaCircular(startPath, rotatedOffsets, pathDirection, tileParent);
     }
     else
     {
-        // Solo actualizar currentPathEnd si NO es bifurcación
         currentPathEnd = startPath + rotatedOffsets[^1];
     }
 
     placedTiles.Add(new PlacedTileData(tile.tileName, bottomLeft));
 }
-   private void CrearBifurcacionT(Vector2Int startPath, List<Vector2Int> mainOffsets, Vector2Int mainDirection, GameObject tileParent)
+ private void CrearRedomaCircular(Vector2Int startPath, List<Vector2Int> mainOffsets, Vector2Int mainDirection, GameObject tileParent)
 {
-    // El punto de bifurcación está al final del camino principal corto
-    Vector2Int bifurcationPoint = startPath + mainOffsets[mainOffsets.Count - 1];
+    Debug.Log($"[GridManager] Creando redoma circular en dirección: {mainDirection}");
     
-    Debug.Log($"[GridManager] Punto de bifurcación: {bifurcationPoint}");
-
-    // Continuar el camino central
-    Vector2Int centralEnd = bifurcationPoint;
-    for (int i = 1; i <= 2; i++)
-    {
-        Vector2Int pos = bifurcationPoint + mainDirection * i;
-        if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) break;
-        
-        Vector3 worldPos = new Vector3(pos.x * cellSize, 0, pos.y * cellSize);
-        if (gridCells.ContainsKey(pos))
-        {
-            Destroy(gridCells[pos]);
-            gridCells.Remove(pos);
-        }
-        gridCells[pos] = Instantiate(pathPrefab, worldPos, Quaternion.identity, tileParent.transform);
-        pathPositions.Add(worldPos);
-        
-        CrearCelda(pos);
-        ConectarCeldas(centralEnd, pos, 1);
-        centralEnd = pos;
-    }
-
-    // Determinar direcciones laterales
-    Vector2Int leftDir, rightDir;
-    if (mainDirection == Vector2Int.up || mainDirection == Vector2Int.down)
-    {
-        leftDir = Vector2Int.left;
-        rightDir = Vector2Int.right;
-    }
-    else
-    {
-        leftDir = Vector2Int.down;
-        rightDir = Vector2Int.up;
-    }
-
-    // Crear rama izquierda
-    Vector2Int leftEnd = bifurcationPoint;
-    for (int i = 1; i <= 2; i++)
-    {
-        Vector2Int pos = bifurcationPoint + leftDir * i;
-        if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) break;
-        
-        Vector3 worldPos = new Vector3(pos.x * cellSize, 0, pos.y * cellSize);
-        if (gridCells.ContainsKey(pos))
-        {
-            Destroy(gridCells[pos]);
-            gridCells.Remove(pos);
-        }
-        gridCells[pos] = Instantiate(pathPrefab, worldPos, Quaternion.identity, tileParent.transform);
-        pathPositions.Add(worldPos);
-        
-        CrearCelda(pos);
-        ConectarCeldas(leftEnd, pos, 1);
-        leftEnd = pos;
-    }
-
-    // Crear rama derecha
-    Vector2Int rightEnd = bifurcationPoint;
-    for (int i = 1; i <= 2; i++)
-    {
-        Vector2Int pos = bifurcationPoint + rightDir * i;
-        if (pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height) break;
-        
-        Vector3 worldPos = new Vector3(pos.x * cellSize, 0, pos.y * cellSize);
-        if (gridCells.ContainsKey(pos))
-        {
-            Destroy(gridCells[pos]);
-            gridCells.Remove(pos);
-        }
-        gridCells[pos] = Instantiate(pathPrefab, worldPos, Quaternion.identity, tileParent.transform);
-        pathPositions.Add(worldPos);
-        
-        CrearCelda(pos);
-        ConectarCeldas(rightEnd, pos, 1);
-        rightEnd = pos;
-    }
-
-    // IMPORTANTE: Actualizar currentPathEnd al punto central final
-    currentPathEnd = centralEnd;
+    // Puntos clave del tile
+    Vector2Int puntoEntrada = startPath + mainOffsets[1];     // donde entra
+    Vector2Int puntoDivision = startPath + mainOffsets[2];    // donde se divide el camino
+    Vector2Int puntoReunion = startPath + mainOffsets[3];     // donde se reúne
+    Vector2Int puntoSalida = startPath + mainOffsets[4];      // donde sale
     
-    Debug.Log($"[GridManager] Bifurcación creada. Rama izq: {leftEnd}, Centro: {centralEnd}, Rama der: {rightEnd}");
+    Debug.Log($"[GridManager] Puntos: Entrada={puntoEntrada}, División={puntoDivision}, Reunión={puntoReunion}, Salida={puntoSalida}");
+    
+    // 1. CREAR ATAJO CENTRAL (peso 1 - óptimo para Dijkstra)
+    CrearAtajoCentral(puntoDivision, puntoReunion, tileParent);
+    
+    // 2. CREAR CAMINO CIRCULAR (peso 3 - menos eficiente, para BFS)
+    CrearCaminoCircularRedoma(puntoDivision, puntoReunion, mainDirection, tileParent);
+    
+    // 3. Actualizar el punto final
+    currentPathEnd = puntoSalida;
+    
+    Debug.Log($"[GridManager] Redoma circular creada exitosamente. Nuevo endpoint: {currentPathEnd}");
 }
-  private void CrearRamasBifurcacion(Vector2Int startPath, List<Vector2Int> mainOffsets, Vector2Int mainDirection, GameObject tileParent)
+
+// Crear el atajo central directo
+private void CrearAtajoCentral(Vector2Int desde, Vector2Int hasta, GameObject parent)
 {
-    // Punto de bifurcación: mitad del camino principal
-    Vector2Int bifurcationPoint = startPath + mainOffsets[2];
+    Debug.Log($"[GridManager] Creando atajo central desde {desde} hasta {hasta}");
     
-    Debug.Log($"[GridManager] Creando bifurcación en punto: {bifurcationPoint}");
+    // Conexión directa con peso 1 (más eficiente para Dijkstra)
+    ConectarCeldas(desde, hasta, 1);
     
-    // Determinar las direcciones perpendiculares
-    Vector2Int[] sideDirections = new Vector2Int[2];
-    if (mainDirection == Vector2Int.up || mainDirection == Vector2Int.down)
+    Debug.Log($"[GridManager] Atajo central creado con peso 1");
+}
+
+// Crear el camino circular (la "redoma")
+private void CrearCaminoCircularRedoma(Vector2Int desde, Vector2Int hasta, Vector2Int mainDirection, GameObject parent)
+{
+    Debug.Log($"[GridManager] Creando camino circular tipo redoma desde {desde} hasta {hasta}");
+    
+    // Determinar direcciones laterales según la dirección principal
+    Vector2Int direccionIzquierda, direccionDerecha;
+    
+    if (mainDirection == Vector2Int.up)
     {
-        sideDirections[0] = Vector2Int.left;
-        sideDirections[1] = Vector2Int.right;
+        direccionIzquierda = Vector2Int.left;
+        direccionDerecha = Vector2Int.right;
+    }
+    else if (mainDirection == Vector2Int.right)
+    {
+        direccionIzquierda = Vector2Int.up;
+        direccionDerecha = Vector2Int.down;
+    }
+    else if (mainDirection == Vector2Int.left)
+    {
+        direccionIzquierda = Vector2Int.down;
+        direccionDerecha = Vector2Int.up;
     }
     else
     {
-        sideDirections[0] = Vector2Int.up;
-        sideDirections[1] = Vector2Int.down;
+        // Fallback
+        direccionIzquierda = Vector2Int.left;
+        direccionDerecha = Vector2Int.right;
     }
     
-    Debug.Log($"[GridManager] Direcciones de ramas: {sideDirections[0]}, {sideDirections[1]}");
-
-    // Guardar los puntos finales de cada rama
-    List<Vector2Int> branchEndpoints = new List<Vector2Int>();
-
-    // Crear rama izquierda/arriba
-    Vector2Int lastLeftPos = bifurcationPoint;
-    for (int i = 1; i <= 2; i++)
-    {
-        Vector2Int branchPos = bifurcationPoint + sideDirections[0] * i;
-        
-        if (branchPos.x < 0 || branchPos.x >= width || branchPos.y < 0 || branchPos.y >= height)
-        {
-            Debug.LogWarning($"[GridManager] Rama izquierda fuera de límites en {branchPos}");
-            break;
-        }
-            
-        Vector3 spawnPos = new Vector3(branchPos.x * cellSize, 0, branchPos.y * cellSize);
-        
-        if (gridCells.ContainsKey(branchPos))
-        {
-            Destroy(gridCells[branchPos]);
-            gridCells.Remove(branchPos);
-        }
-        
-        gridCells[branchPos] = Instantiate(pathPrefab, spawnPos, Quaternion.identity, tileParent.transform);
-        pathPositions.Add(spawnPos);
-        
-        CrearCelda(branchPos);
-        
-        if (i == 1)
-            ConectarCeldas(bifurcationPoint, branchPos, 1);
-        else
-            ConectarCeldas(lastLeftPos, branchPos, 1);
-            
-        lastLeftPos = branchPos;
-    }
-    if (lastLeftPos != bifurcationPoint)
-        branchEndpoints.Add(lastLeftPos);
-
-    // Crear rama derecha/abajo
-    Vector2Int lastRightPos = bifurcationPoint;
-    for (int i = 1; i <= 2; i++)
-    {
-        Vector2Int branchPos = bifurcationPoint + sideDirections[1] * i;
-        
-        if (branchPos.x < 0 || branchPos.x >= width || branchPos.y < 0 || branchPos.y >= height)
-        {
-            Debug.LogWarning($"[GridManager] Rama derecha fuera de límites en {branchPos}");
-            break;
-        }
-            
-        Vector3 spawnPos = new Vector3(branchPos.x * cellSize, 0, branchPos.y * cellSize);
-        
-        if (gridCells.ContainsKey(branchPos))
-        {
-            Destroy(gridCells[branchPos]);
-            gridCells.Remove(branchPos);
-        }
-        
-        gridCells[branchPos] = Instantiate(pathPrefab, spawnPos, Quaternion.identity, tileParent.transform);
-        pathPositions.Add(spawnPos);
-        
-        CrearCelda(branchPos);
-        
-        if (i == 1)
-            ConectarCeldas(bifurcationPoint, branchPos, 1);
-        else
-            ConectarCeldas(lastRightPos, branchPos, 1);
-            
-        lastRightPos = branchPos;
-    }
-    if (lastRightPos != bifurcationPoint)
-        branchEndpoints.Add(lastRightPos);
+    // LADO IZQUIERDO de la redoma
+    CrearLadoRedoma(desde, hasta, direccionIzquierda, mainDirection, parent, "izquierdo");
     
-    Debug.Log($"[GridManager] Bifurcación creada con {branchEndpoints.Count} puntos finales");
+    // LADO DERECHO de la redoma (solo si no va hacia abajo)
+    if (direccionDerecha != Vector2Int.down || mainDirection == Vector2Int.up)
+    {
+        CrearLadoRedoma(desde, hasta, direccionDerecha, mainDirection, parent, "derecho");
+    }
+}
+
+// Crear un lado de la redoma (izquierdo o derecho)
+private void CrearLadoRedoma(Vector2Int desde, Vector2Int hasta, Vector2Int direccionLateral, Vector2Int direccionPrincipal, GameObject parent, string lado)
+{
+    Debug.Log($"[GridManager] Creando lado {lado} de la redoma");
+    
+    // Calcular puntos del arco
+    Vector2Int punto1 = desde + direccionLateral;                                    // primer punto lateral
+    Vector2Int punto2 = desde + direccionLateral * 2;                               // punto más alejado lateralmente
+    Vector2Int punto3 = punto2 + direccionPrincipal * (hasta.y - desde.y);         // avanzar hacia adelante
+    Vector2Int punto4 = punto3 - direccionLateral;                                  // volver hacia el centro
+    Vector2Int punto5 = punto4 - direccionLateral;                                  // punto antes de la reunión
+    
+    List<Vector2Int> puntosArco = new List<Vector2Int> { desde, punto1, punto2, punto3, punto4, punto5, hasta };
+    
+    // Crear y conectar cada punto del arco
+    Vector2Int puntoAnterior = desde;
+    for (int i = 1; i < puntosArco.Count; i++)
+    {
+        Vector2Int puntoActual = puntosArco[i];
+        
+        // Solo crear si está dentro del mapa y no va hacia abajo
+        if (!EstaFueraDelMapa(puntoActual) && puntoActual.y >= desde.y)
+        {
+            // Solo crear celda si no es el punto de reunión (ya existe)
+            if (puntoActual != hasta && puntoActual != desde)
+            {
+                Vector3 worldPos = new Vector3(puntoActual.x * cellSize, 0, puntoActual.y * cellSize);
+                CrearCeldaDeCamino(puntoActual, worldPos, parent);
+            }
+            
+            // Conectar con peso 3 (menos eficiente que el atajo central)
+            ConectarCeldas(puntoAnterior, puntoActual, 3);
+            puntoAnterior = puntoActual;
+        }
+        else
+        {
+            Debug.LogWarning($"[GridManager] Punto {puntoActual} del lado {lado} está fuera del mapa o va hacia abajo");
+            break;
+        }
+    }
+    
+    Debug.Log($"[GridManager] Lado {lado} de la redoma creado con peso 3");
+}
+
+// Función auxiliar para crear celdas de camino
+private void CrearCeldaDeCamino(Vector2Int pos, Vector3 worldPos, GameObject parent)
+{
+    // Destruir celda existente si la hay
+    if (gridCells.ContainsKey(pos))
+    {
+        Destroy(gridCells[pos]);
+        gridCells.Remove(pos);
+    }
+    
+    // Crear nueva celda de camino
+    gridCells[pos] = Instantiate(pathPrefab, worldPos, Quaternion.identity, parent.transform);
+    pathPositions.Add(worldPos);
+    
+    // Agregar al grafo
+    CrearCelda(pos);
+}
+
+// Función auxiliar para verificar límites
+private bool EstaFueraDelMapa(Vector2Int pos)
+{
+    return pos.x < 0 || pos.x >= width || pos.y < 0 || pos.y >= height;
 }
 public List<Vector2Int> ObtenerPuntosFinales()
 {
@@ -506,21 +458,15 @@ public List<Vector2Int> ObtenerPuntosFinales()
                 Vector2Int.up * 2 + Vector2Int.left,
                 Vector2Int.up * 2 + Vector2Int.left * 2
             }),
-        
-            // NUEVO: Tile T-Bifurcacion
-            new TileExpansion("T-Bifurcacion", new[] {
-                new Vector2Int( 0, 0),   // base
-                new Vector2Int( 0, 1),   // tronco
-                new Vector2Int( 0, 2),
-                new Vector2Int( 0, 3),
-                // ramas izquierda de 3 celdas
-                new Vector2Int(-1, 3),
-                new Vector2Int(-2, 3),
-                new Vector2Int(-3, 3),
-                // ramas derecha de 3 celdas
-                new Vector2Int( 1, 3),
-                new Vector2Int( 2, 3),
-                new Vector2Int( 3, 3)
+
+            // NUEVO: Tile Circular con atajo central (reemplaza T-Bifurcacion)
+            new TileExpansion("Circular-Redoma", new[]
+            {
+                new Vector2Int(0, 0),  // entrada
+                Vector2Int.up,         // primer paso
+                Vector2Int.up * 2,     // punto de división
+                Vector2Int.up * 3,     // punto de reunión (atajo central)
+                Vector2Int.up * 4      // salida
             })
         };
         return tiles;
@@ -542,23 +488,34 @@ public List<Vector2Int> ObtenerPuntosFinales()
         }
 
         TileExpansion selectedTile;
-    
-        // Forzar bifurcación cada 3 oleadas (oleadas 3, 6, 9, etc)
-        bool shouldForceBifurcation = (waveNumber > 0 && waveNumber % 3 == 0);
-    
-        if (shouldForceBifurcation && validTiles.Any(t => t.tileName == "T-Bifurcacion"))
+
+        // CAMBIO: Forzar redoma circular cada 2 oleadas (oleadas 2, 4, 6, etc)
+        bool shouldForceCircular = (waveNumber > 1 && waveNumber % 2 == 0);
+
+        if (shouldForceCircular && validTiles.Any(t => t.tileName == "Circular-Redoma"))
         {
-            selectedTile = validTiles.First(t => t.tileName == "T-Bifurcacion");
-            Debug.Log($"[GridManager] FORZANDO BIFURCACIÓN en oleada {waveNumber}");
+            selectedTile = validTiles.First(t => t.tileName == "Circular-Redoma");
+            Debug.Log($"[GridManager] FORZANDO REDOMA CIRCULAR en oleada {waveNumber}");
         }
         else
         {
-            // Selección aleatoria normal
-            int randomIndex = UnityEngine.Random.Range(0, validTiles.Count);
-            selectedTile = validTiles[randomIndex];
+            // Excluir la redoma circular de la selección aleatoria en oleadas impares
+            List<TileExpansion> tilesWithoutCircular = validTiles
+                .Where(t => t.tileName != "Circular-Redoma")
+                .ToList();
+        
+            if (tilesWithoutCircular.Count > 0)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, tilesWithoutCircular.Count);
+                selectedTile = tilesWithoutCircular[randomIndex];
+            }
+            else
+            {
+                selectedTile = validTiles[0];
+            }
         }
-    
-        Debug.Log($"[GridManager] Tile seleccionado: {selectedTile.tileName}");
+
+        Debug.Log($"[GridManager] Tile seleccionado: {selectedTile.tileName} para oleada {waveNumber}");
 
         Vector3 worldPosition = new Vector3(currentPathEnd.x * cellSize, 0, currentPathEnd.y * cellSize);
         ApplyTileExpansionAtWorldPosition(selectedTile, worldPosition);
@@ -566,64 +523,63 @@ public List<Vector2Int> ObtenerPuntosFinales()
 
 
     public List<string> GetDisabledTileNamesFromNextAdyacents()
+{
+    List<string> disabledTiles = new();
+
+    Vector2Int pathDir = GetPathDirection();
+    Vector2Int tileOffset = Vector2Int.zero;
+
+    if (pathDir == Vector2Int.up)
+        tileOffset = new Vector2Int(-5 / 2, 1);
+    else if (pathDir == Vector2Int.right)
+        tileOffset = new Vector2Int(1, -5 / 2);
+    else if (pathDir == Vector2Int.left)
+        tileOffset = new Vector2Int(-5, -5 / 2);
+
+    Vector2Int nextBottomLeft = GetLastPathGridPosition() + tileOffset;
+
+    Vector2Int[] localDirs = new[]
     {
-        List<string> disabledTiles = new();
+        Vector2Int.up * 5,
+        Vector2Int.left * 5,
+        Vector2Int.right * 5
+        // Removido Vector2Int.down para evitar ir hacia abajo
+    };
 
-        Vector2Int pathDir = GetPathDirection();
-        Vector2Int tileOffset = Vector2Int.zero;
+    HashSet<Vector2Int> allTilePositions = new(placedTiles.Select(p => p.basePosition));
 
-        if (pathDir == Vector2Int.up)
-            tileOffset = new Vector2Int(-5 / 2, 1);
-        else if (pathDir == Vector2Int.right)
-            tileOffset = new Vector2Int(1, -5 / 2);
-        else if (pathDir == Vector2Int.down)
-            tileOffset = new Vector2Int(-5 / 2, -5);
-        else if (pathDir == Vector2Int.left)
-            tileOffset = new Vector2Int(-5, -5 / 2);
-        disabledTiles.Remove("T-Bifurcacion");
-        Vector2Int nextBottomLeft = GetLastPathGridPosition() + tileOffset;
+    foreach (var dir in localDirs)
+    {
+        Vector2Int adjacent = nextBottomLeft + dir;
+        if (adjacent == currentPathEnd) continue;
 
-        Vector2Int[] localDirs = new[]
-        {
-            Vector2Int.up * 5,
-            Vector2Int.down * 5,
-            Vector2Int.left * 5,
-            Vector2Int.right * 5
-        };
+        if (!allTilePositions.Contains(adjacent)) continue;
 
-        HashSet<Vector2Int> allTilePositions = new(placedTiles.Select(p => p.basePosition));
+        Vector2Int delta = adjacent - nextBottomLeft;
+        string sugerido = "";
 
-        foreach (var dir in localDirs)
-        {
-            Vector2Int adjacent = nextBottomLeft + dir;
-            if (adjacent == currentPathEnd) continue;
+        if (delta == pathDir * 5)
+            sugerido = "Recto";
+        else if (
+            (pathDir == Vector2Int.up && delta == Vector2Int.right * 5) ||
+            (pathDir == Vector2Int.right && delta == Vector2Int.up * 5) ||
+            (pathDir == Vector2Int.left && delta == Vector2Int.up * 5))
+            sugerido = "L-Shape";
+        else if (
+            (pathDir == Vector2Int.up && delta == Vector2Int.left * 5) ||
+            (pathDir == Vector2Int.left && delta == Vector2Int.up * 5) ||
+            (pathDir == Vector2Int.right && delta == Vector2Int.up * 5))
+            sugerido = "L-Inverso";
 
-            if (!allTilePositions.Contains(adjacent)) continue;
-
-            Vector2Int delta = adjacent - nextBottomLeft;
-            string sugerido = "";
-
-            if (delta == pathDir * 5)
-                sugerido = "Recto";
-            else if (
-                (pathDir == Vector2Int.up && delta == Vector2Int.right * 5) ||
-                (pathDir == Vector2Int.right && delta == Vector2Int.down * 5) ||
-                (pathDir == Vector2Int.down && delta == Vector2Int.left * 5) ||
-                (pathDir == Vector2Int.left && delta == Vector2Int.up * 5))
-                sugerido = "L-Shape";
-            else if (
-                (pathDir == Vector2Int.up && delta == Vector2Int.left * 5) ||
-                (pathDir == Vector2Int.left && delta == Vector2Int.down * 5) ||
-                (pathDir == Vector2Int.down && delta == Vector2Int.right * 5) ||
-                (pathDir == Vector2Int.right && delta == Vector2Int.up * 5))
-                sugerido = "L-Inverso";
-
-            if (!string.IsNullOrEmpty(sugerido) && !disabledTiles.Contains(sugerido))
-                disabledTiles.Add(sugerido);
-        }
-        disabledTiles.Remove("T-Bifurcacion");
-        return disabledTiles;
+        if (!string.IsNullOrEmpty(sugerido) && !disabledTiles.Contains(sugerido))
+            disabledTiles.Add(sugerido);
     }
+
+    // La redoma circular siempre está disponible (no se deshabilita por adyacencia)
+    disabledTiles.Remove("Circular-Redoma");
+    
+    return disabledTiles;
+}
     public Vector3[] GetPathPositions()
     {
         return pathPositions.ToArray();

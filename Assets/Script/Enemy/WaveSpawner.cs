@@ -14,6 +14,10 @@ public class WaveSpawner : MonoBehaviour
     public GameObject miniBossPrefab;
     public GameObject bossPrefab;
 
+    [Header("Hotkey Controls")]
+    public KeyCode nextWaveHotkey = KeyCode.Space;
+    public KeyCode alternativeHotkey = KeyCode.Return; // Enter
+    public bool enableHotkeys = true;
     public GridManager gridManager;
     public GameObject core;
 
@@ -56,6 +60,7 @@ public class WaveSpawner : MonoBehaviour
 
     void Update()
     {
+        // Código existente de Update...
         if (!waitingForNextWave && !gridIsExpanding && waveInProgress && currentWave <= maxWaves)
         {
             if (enemiesAlive <= 0)
@@ -82,44 +87,23 @@ public class WaveSpawner : MonoBehaviour
                 }
                 else
                 {
-                    Debug.Log("�Ganaste! Todas las oleadas completadas.");
+                    Debug.Log("¡Ganaste! Todas las oleadas completadas.");
                     GameManager.Instance.OnVictory();
                 }
             }
         }
+
+        // NUEVO: Sistema de hotkeys
+        if (enableHotkeys)
+        {
+            HandleHotkeyInput();
+        }
     }
+
     
     
 
-    IEnumerator StartWaveDelay()
-    {
-        float timer = 30f;
-        waitingForNextWave = true;
-        isStartingNextWave = false;
-        nextWaveButton.gameObject.SetActive(true);
-        nextWaveButton.interactable = false;
-
-        gridIsExpanding = false;
-
-        nextWaveButton.interactable = true;
-        countdownText.text = "";
-
-        while (waitingForNextWave && timer > 0)
-        {
-            timer -= Time.deltaTime;
-            if (countdownText != null)
-                countdownText.text = $"Pr�xima oleada en: {Mathf.CeilToInt(timer)}s";
-            yield return null;
-        }
-
-        if (!isStartingNextWave)
-        {
-            waitingForNextWave = false;
-            nextWaveButton.gameObject.SetActive(false);
-            countdownText.text = "";
-            StartNextWave();
-        }
-    }
+    
 
     public void StartNextWaveManually()
     {
@@ -303,4 +287,152 @@ public class WaveSpawner : MonoBehaviour
         if (!goldTurrets.Contains(turret))
             goldTurrets.Add(turret);
     }
+    
+    private void HandleHotkeyInput()
+{
+    // Detectar hotkeys solo si estamos esperando la siguiente oleada
+    if (waitingForNextWave && !gridIsExpanding && !isStartingNextWave)
+    {
+        if (Input.GetKeyDown(nextWaveHotkey) || Input.GetKeyDown(alternativeHotkey))
+        {
+            Debug.Log($"[WaveSpawner] Hotkey detectado: {(Input.GetKeyDown(nextWaveHotkey) ? nextWaveHotkey.ToString() : alternativeHotkey.ToString())}");
+            StartNextWaveViaHotkey();
+        }
+    }
+    
+    // Hotkey de emergencia para forzar oleada (solo en desarrollo)
+    #if UNITY_EDITOR
+    if (Input.GetKeyDown(KeyCode.F1))
+    {
+        Debug.Log("[WaveSpawner] Hotkey F1: Forzando siguiente oleada (modo desarrollo)");
+        ForceNextWave();
+    }
+    
+    if (Input.GetKeyDown(KeyCode.F2))
+    {
+        Debug.Log("[WaveSpawner] Hotkey F2: Eliminando todos los enemigos");
+        KillAllEnemies();
+    }
+    #endif
+}
+
+// NUEVA FUNCIÓN: Iniciar oleada vía hotkey
+private void StartNextWaveViaHotkey()
+{
+    if (waitingForNextWave && !gridIsExpanding && !isStartingNextWave)
+    {
+        isStartingNextWave = true;
+        waitingForNextWave = false;
+        nextWaveButton.gameObject.SetActive(false);
+        countdownText.text = "";
+        
+        Debug.Log($"[WaveSpawner] Iniciando oleada {currentWave + 1} vía hotkey");
+        StartNextWave();
+    }
+}
+
+// NUEVA FUNCIÓN: Forzar oleada (solo desarrollo)
+#if UNITY_EDITOR
+private void ForceNextWave()
+{
+    if (waveInProgress)
+    {
+        // Si hay oleada en progreso, eliminar todos los enemigos primero
+        KillAllEnemies();
+    }
+    
+    // Resetear estados
+    waitingForNextWave = false;
+    gridIsExpanding = false;
+    waveInProgress = false;
+    isStartingNextWave = false;
+    
+    // Ocultar UI
+    nextWaveButton.gameObject.SetActive(false);
+    countdownText.text = "";
+    
+    // Iniciar siguiente oleada
+    StartNextWave();
+}
+
+private void KillAllEnemies()
+{
+    // Encontrar todos los enemigos activos y eliminarlos
+    Enemy[] allEnemies = FindObjectsOfType<Enemy>();
+    DirectEnemy[] allDirectEnemies = FindObjectsOfType<DirectEnemy>();
+    
+    foreach (Enemy enemy in allEnemies)
+    {
+        if (!enemy.gameObject.name.Contains("Pool")) // No afectar enemigos en pool
+        {
+            enemy.GetComponent<Enemy>()?.Die();
+        }
+    }
+    
+    foreach (DirectEnemy directEnemy in allDirectEnemies)
+    {
+        if (!directEnemy.gameObject.name.Contains("Pool"))
+        {
+            // DirectEnemy no tiene método Die público, usar el private
+            directEnemy.SendMessage("Die", SendMessageOptions.DontRequireReceiver);
+        }
+    }
+    
+    enemiesAlive = 0;
+    Debug.Log("[WaveSpawner] Todos los enemigos eliminados forzadamente");
+}
+#endif
+
+// Modificar StartWaveDelay para mostrar información del hotkey
+IEnumerator StartWaveDelay()
+{
+    float timer = 30f;
+    waitingForNextWave = true;
+    isStartingNextWave = false;
+    nextWaveButton.gameObject.SetActive(true);
+    nextWaveButton.interactable = false;
+
+    gridIsExpanding = false;
+
+    nextWaveButton.interactable = true;
+    countdownText.text = "";
+
+    while (waitingForNextWave && timer > 0)
+    {
+        timer -= Time.deltaTime;
+        if (countdownText != null)
+        {
+            // Mostrar información del hotkey en el texto del countdown
+            string hotkeyInfo = enableHotkeys ? $"\nPresiona {nextWaveHotkey} o {alternativeHotkey} para avanzar" : "";
+            countdownText.text = $"Próxima oleada en: {Mathf.CeilToInt(timer)}s{hotkeyInfo}";
+        }
+        yield return null;
+    }
+
+    if (!isStartingNextWave)
+    {
+        waitingForNextWave = false;
+        nextWaveButton.gameObject.SetActive(false);
+        countdownText.text = "";
+        StartNextWave();
+    }
+}
+
+// NUEVA FUNCIÓN: Configurar hotkeys desde inspector o código
+public void SetHotkeys(KeyCode primary, KeyCode secondary = KeyCode.None)
+{
+    nextWaveHotkey = primary;
+    if (secondary != KeyCode.None)
+    {
+        alternativeHotkey = secondary;
+    }
+    Debug.Log($"[WaveSpawner] Hotkeys configurados: {primary}" + (secondary != KeyCode.None ? $" y {secondary}" : ""));
+}
+
+// NUEVA FUNCIÓN: Toggle hotkeys
+public void ToggleHotkeys(bool enabled)
+{
+    enableHotkeys = enabled;
+    Debug.Log($"[WaveSpawner] Hotkeys {(enabled ? "habilitados" : "deshabilitados")}");
+}
 }
