@@ -59,21 +59,6 @@ public class Enemy : MonoBehaviour
         mainPathPositions = pathPositions;
         currentPathIndex = 1;
 
-        if (pathPositions == null || pathPositions.Length == 0)
-        {
-            Debug.LogError("[ENEMY NORMAL - BFS] pathPositions está vacío o NULL usando BFS.");
-        
-            // Fallback: si BFS falla, usar Dijkstra como último recurso
-            Debug.LogWarning("[ENEMY NORMAL - BFS] Fallback a Dijkstra por emergencia");
-            pathPositions = gridManager.ObtenerCaminoOptimoWorld(spawnGridPos, coreGridPos);
-        
-            if (pathPositions == null || pathPositions.Length == 0)
-            {
-                Debug.LogError("[ENEMY NORMAL - BFS] Incluso Dijkstra falló. Enemy sin ruta.");
-                return;
-            }
-        }
-
         if (healthBarPrefab != null)
         {
             healthBarInstance = Instantiate(healthBarPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
@@ -150,6 +135,48 @@ public class Enemy : MonoBehaviour
     }
 
 
+  /*  public void InitializePathBFS(Vector2Int spawnGridPos, Vector2Int coreGridPos, GameObject coreObject, WaveSpawner spawner, GridManager manager)
+    {
+        isDead = false;
+        previousPaths.InicializarPila();
+
+        core = coreObject;
+        waveSpawner = spawner;
+        gridManager = manager;
+        currentHealth = maxHealth;
+
+        // FORZAR BFS explícitamente para boss/mini-boss (nunca usar Dijkstra como fallback)
+        Debug.Log($"[BOSS/MINI-BOSS - BFS FORZADO] Calculando camino MÁS largo desde {spawnGridPos} a {coreGridPos}");
+    
+        pathPositions = gridManager.ObtenerCaminoNormalWorld(spawnGridPos, coreGridPos);
+    
+        if (pathPositions == null || pathPositions.Length == 0)
+        {
+            Debug.LogError("[BOSS/MINI-BOSS - BFS FORZADO] ¡ERROR! No se pudo generar camino BFS para boss.");
+        
+            // Para boss, si BFS falla, crear un camino directo simple pero NO usar Dijkstra
+            Vector3 start = new Vector3(spawnGridPos.x * gridManager.cellSize, 0, spawnGridPos.y * gridManager.cellSize);
+            Vector3 end = new Vector3(coreGridPos.x * gridManager.cellSize, 0, coreGridPos.y * gridManager.cellSize);
+            pathPositions = new Vector3[] { start, end };
+        
+            Debug.LogWarning("[BOSS/MINI-BOSS - BFS FORZADO] Usando camino directo de emergencia (NO Dijkstra)");
+        }
+        else
+        {
+            Debug.Log($"[BOSS/MINI-BOSS - BFS FORZADO] ✅ Camino largo generado: {pathPositions.Length} puntos");
+            Debug.Log($"[BOSS/MINI-BOSS - BFS FORZADO] Esto debería ser MÁS largo que el camino de DirectEnemy");
+        }
+
+        mainPathPositions = pathPositions;
+        currentPathIndex = 1;
+
+        if (healthBarPrefab != null)
+        {
+            healthBarInstance = Instantiate(healthBarPrefab, transform.position + Vector3.up * 1.5f, Quaternion.identity);
+            healthBarInstance.transform.SetParent(transform);
+            healthBarFill = healthBarInstance.transform.Find("Background/Filled").GetComponent<Image>();
+        }
+    } */
 
 
     private void DebugDrawPath()

@@ -178,7 +178,7 @@ public class WaveSpawner : MonoBehaviour
         StartCoroutine(SpawnWave(fullPath.ToList(), spawnPos));
     }
 
-    // ACTUALIZADO: SpawnWave mejorado para mostrar diferencias entre algoritmos
+ 
     IEnumerator SpawnWave(List<Vector3> fullPath, Vector3 spawnPos)
     {
         bool isBossWave = currentWave % 15 == 0;
@@ -188,18 +188,7 @@ public class WaveSpawner : MonoBehaviour
         int totalEnemies = enemiesPerWave + (currentWave - 1) * 4 + extraEnemies;
         enemiesAlive = totalEnemies;
 
-        // Obtener TODOS los puntos finales disponibles
         List<Vector2Int> puntosFinales = gridManager.ObtenerPuntosFinales();
-        
-        Debug.Log($"[WaveSpawner] === OLEADA {currentWave} ===");
-        Debug.Log($"[WaveSpawner] Spawneando {totalEnemies} enemigos desde {puntosFinales.Count} puntos");
-        Debug.Log($"[WaveSpawner] DirectEnemy (AZUL) usará DIJKSTRA - atajos eficientes");
-        Debug.Log($"[WaveSpawner] Enemy Normal (ROJO) usará BFS - caminos largos");
-        
-        foreach (var punto in puntosFinales)
-        {
-            Debug.Log($"  - Punto de spawn disponible: {punto}");
-        }
         
         if (puntosFinales.Count == 0)
         {
@@ -209,6 +198,7 @@ public class WaveSpawner : MonoBehaviour
                 Mathf.RoundToInt(spawnPos.z / gridManager.cellSize)
             ));
         }
+
 
         Vector2Int coreGridPos = new Vector2Int(gridManager.width / 2, 0);
 
@@ -272,13 +262,17 @@ public class WaveSpawner : MonoBehaviour
         {
             Vector2Int bossSpawnPoint = puntosFinales[Random.Range(0, puntosFinales.Count)];
             Vector3 bossSpawnPos = new Vector3(bossSpawnPoint.x * gridManager.cellSize, 0, bossSpawnPoint.y * gridManager.cellSize);
-            
-            Debug.Log($"[WaveSpawner] Spawneando boss en {bossSpawnPoint}");
-            
+        
             if (isMiniBossWave)
+            {
+                Debug.Log($"[WaveSpawner] 🟠 MiniBoss (BFS FORZADO - Camino MÁS largo) spawneando en {bossSpawnPoint}");
                 yield return SpawnSpecial("MiniBoss", fullPath, bossSpawnPos);
+            }
             else if (isBossWave)
+            {
+                Debug.Log($"[WaveSpawner] 🟠 Boss (BFS FORZADO - Camino MÁS largo) spawneando en {bossSpawnPoint}");
                 yield return SpawnSpecial("Boss", fullPath, bossSpawnPos);
+            }
         }
         
       
@@ -302,10 +296,13 @@ public class WaveSpawner : MonoBehaviour
             Mathf.RoundToInt(coreWorldPos.z / gridManager.cellSize)
         );
 
-        e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager);
+       
+        Debug.Log($"[WaveSpawner] 🟠 {type} FORZADO a usar BFS (camino largo) desde {spawnGridPos}");
+        e.InitializePath(spawnGridPos, coreGridPos, core, this, gridManager); // NUEVO MÉTODO
 
         yield return new WaitForSeconds(1f);
     }
+
 
     
     public void EnemyKilled(DirectEnemy directEnemy)

@@ -657,7 +657,7 @@ public List<Vector2Int> ObtenerPuntosFinales()
     }
     public void DebugCaminoOptimo(Vector2Int inicio, Vector2Int fin)
     {
-        caminoOptimoDebug = ObtenerCaminoOptimo(inicio, fin);
+       // caminoOptimoDebug = ObtenerCaminoOptimo(inicio, fin);
     }
     void OnDrawGizmos()
     {
@@ -710,7 +710,7 @@ public Vector3[] ObtenerCaminoNormalWorld(Vector2Int inicio, Vector2Int fin)
         
         // Fallback a Dijkstra si BFS falla
         Debug.LogWarning($"[GridManager] Enemy Normal: Usando Dijkstra como fallback");
-        camino = ObtenerCaminoOptimo(inicio, fin);
+       // camino = ObtenerCaminoOptimo(inicio, fin);
         
         if (camino == null)
         {
