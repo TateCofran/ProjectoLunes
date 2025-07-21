@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-public class UpgradeTree
+public class UpgradeTree : IUpgradeTree
 {
     public UpgradeNode Root;
 
